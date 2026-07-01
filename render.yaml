@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: instituto-esparta
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: DB_PATH
+        value: /tmp/university.sqlite
+      - key: JWT_SECRET
+        generateValue: true
+      - key: EXPOSE_RESET_TOKEN
+        value: "true"
