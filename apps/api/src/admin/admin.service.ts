@@ -119,7 +119,6 @@ export class AdminService {
         course: {
           code: offering.course.code,
           name: offering.course.name,
-          credits: offering.course.credits,
         },
         teacher: {
           id: offering.teacher.id,
@@ -373,7 +372,6 @@ export class AdminService {
           course: {
             code: enrollment.offering.course.code,
             name: enrollment.offering.course.name,
-            credits: enrollment.offering.course.credits,
           },
           section: enrollment.offering.section,
           term: enrollment.offering.term.name,
@@ -531,11 +529,11 @@ export class AdminService {
         course = courseRepository.create({
           code: normalizedCode,
           name: values.courseName.trim(),
-          credits: values.credits,
+          credits: 0,
         });
       } else {
         course.name = values.courseName.trim();
-        course.credits = values.credits;
+        course.credits = 0;
       }
       course = await courseRepository.save(course);
 
@@ -621,7 +619,6 @@ export class AdminService {
       course: {
         code: result.course.code,
         name: result.course.name,
-        credits: result.course.credits,
       },
       teacher: {
         id: teacher.id,

@@ -55,7 +55,6 @@ interface AdminData {
 interface CourseForm {
   courseCode: string;
   courseName: string;
-  credits: number;
   section: string;
   teacherId: string;
   startsAt: string;
@@ -93,7 +92,6 @@ function getMonthlyDefaults(): CourseForm {
   return {
     courseCode: '',
     courseName: '',
-    credits: 6,
     section: `${month}-01`,
     teacherId: '',
     startsAt: formatDateInput(firstDay),
@@ -364,7 +362,6 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
         '/admin/offerings',
         {
           ...courseForm,
-          credits: Number(courseForm.credits),
           studentIds: selectedStudents.map((student) => student.id),
         },
         token,
@@ -1829,22 +1826,6 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                     })
                   }
                   placeholder="Ej. Gestión de proyectos"
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Créditos</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={courseForm.credits}
-                  onChange={(event) =>
-                    setCourseForm({
-                      ...courseForm,
-                      credits: Number(event.target.value),
-                    })
-                  }
                   required
                 />
               </label>

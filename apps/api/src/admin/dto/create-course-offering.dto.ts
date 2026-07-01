@@ -2,11 +2,8 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
-  IsInt,
   IsString,
   IsUUID,
-  Max,
-  Min,
   MinLength,
 } from 'class-validator';
 
@@ -18,11 +15,6 @@ export class CreateCourseOfferingDto {
   @IsString()
   @MinLength(3)
   courseName: string;
-
-  @IsInt()
-  @Min(1)
-  @Max(20)
-  credits: number;
 
   @IsString()
   @MinLength(1)
@@ -42,4 +34,3 @@ export class CreateCourseOfferingDto {
   @IsDateString()
   endsAt: string;
 }
-

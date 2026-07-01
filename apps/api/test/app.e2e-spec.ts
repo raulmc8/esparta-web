@@ -277,7 +277,6 @@ describe('Campus API', () => {
       .send({
         courseCode: 'UX-401',
         courseName: 'Diseño de Experiencia',
-        credits: 6,
         section: 'JUN-UX',
         teacherId: dashboard.body.teachers[0].id,
         studentIds: [search.body.students[0].id],
@@ -378,7 +377,6 @@ describe('Campus API', () => {
       .send({
         courseCode: 'PAY-401',
         courseName: 'Control de pagos',
-        credits: 6,
         section: 'JUN-PAY',
         teacherId: teacher.body.user.id,
         studentIds: [student.body.user.id],

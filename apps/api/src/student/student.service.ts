@@ -79,7 +79,6 @@ export class StudentService {
       course: {
         code: enrollment.offering.course.code,
         name: enrollment.offering.course.name,
-        credits: enrollment.offering.course.credits,
       },
       section: enrollment.offering.section,
       term: enrollment.offering.term.name,

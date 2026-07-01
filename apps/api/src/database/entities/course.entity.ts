@@ -12,10 +12,9 @@ export class Course {
   @Column()
   name: string;
 
-  @Column({ default: 6 })
+  @Column({ default: 0 })
   credits: number;
 
   @OneToMany(() => CourseOffering, (offering) => offering.course)
   offerings: CourseOffering[];
 }
-

@@ -52,7 +52,7 @@ function CourseCard({
       <div className={`course-card__accent accent-${(index % 3) + 1}`} />
       <div className="course-card__header">
         <span className="course-code">{item.course.code}</span>
-        <span className="course-credits">
+        <span className="course-status">
           {historical ? 'Finalizada' : 'En curso'}
         </span>
       </div>
@@ -193,7 +193,7 @@ export function StudentDashboard({ token, user }: StudentDashboardProps) {
           <div>
             <span>Estado de cuenta</span>
             <strong className="stat-card__status">
-              {paymentIsCurrent ? 'Al corriente' : 'Pago pendiente'}
+              {paymentIsCurrent ? 'Vigente' : 'Pago pendiente'}
             </strong>
             <small>
               {payment

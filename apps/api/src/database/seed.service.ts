@@ -97,17 +97,14 @@ export class SeedService implements OnApplicationBootstrap {
       this.coursesRepository.create({
         code: 'MAT-204',
         name: 'Cálculo Integral',
-        credits: 8,
       }),
       this.coursesRepository.create({
         code: 'PRO-301',
         name: 'Ingeniería de Software',
-        credits: 8,
       }),
       this.coursesRepository.create({
         code: 'BD-202',
         name: 'Bases de Datos',
-        credits: 7,
       }),
     ]);
 

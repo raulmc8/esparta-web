@@ -171,12 +171,11 @@ export async function downloadTranscript(
   doc.text(`Promedio general: ${generalAverage}`, 138, 67);
 
   autoTable(doc, {
-    head: [['Clave', 'Materia', 'Periodo', 'Créditos', 'Calificación final']],
+    head: [['Clave', 'Materia', 'Periodo', 'Calificación final']],
     body: history.map((course) => [
       course.course.code,
       course.course.name,
       course.term,
-      String(course.course.credits),
       course.grades?.finalGrade ?? '—',
     ]),
     startY: 75,
@@ -187,8 +186,7 @@ export async function downloadTranscript(
     alternateRowStyles: { fillColor: [245, 247, 252] },
     columnStyles: {
       0: { cellWidth: 24 },
-      3: { cellWidth: 22, halign: 'center' },
-      4: { cellWidth: 33, halign: 'center' },
+      3: { cellWidth: 33, halign: 'center' },
     },
     willDrawPage: ({ pageNumber }) => {
       if (pageNumber > 1) drawLetterhead(doc, logo, title, subtitle);

@@ -20,7 +20,6 @@ export interface StudentCourse {
   course: {
     code: string;
     name: string;
-    credits: number;
   };
   section: string;
   term: string;
@@ -118,7 +117,6 @@ export interface AdminOffering {
   course: {
     code: string;
     name: string;
-    credits: number;
   };
   teacher: {
     id: string;
