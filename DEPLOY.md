@@ -1,6 +1,7 @@
-# Deploy gratuito para pruebas y migración a producción
+# Deploy de producción en Render Starter y PostgreSQL
 
-La app queda preparada para desplegarse como un solo servicio en Render Free.
+La app queda preparada para desplegarse como un servicio Starter en Render y
+una base PostgreSQL persistente.
 NestJS sirve la API en `/api` y tambien entrega el frontend compilado de Vite.
 
 ## 1. Subir el proyecto a GitHub
@@ -24,8 +25,11 @@ El `.gitignore` ya evita subir `.env`, `node_modules`, `dist` y bases SQLite.
 2. Click en `New +` > `Blueprint`.
 3. Elige el repo que acabas de subir.
 4. Render detectara `render.yaml`.
-5. Confirma el servicio `instituto-esparta` en plan `Free`.
-6. Click en `Apply` / `Deploy`.
+5. Confirma el servicio `instituto-esparta` en plan `Starter` y la base
+   `instituto-esparta-db`.
+6. Captura una contraseña segura en `INITIAL_ADMIN_PASSWORD` cuando Render la
+   solicite.
+7. Click en `Apply` / `Deploy`.
 
 Cuando termine, Render dara una URL tipo:
 
@@ -39,23 +43,11 @@ Prueba:
 https://instituto-esparta.onrender.com/api/health
 ```
 
-## Notas del plan gratis
-
-- El servicio puede dormir despues de unos minutos sin uso y tardar cerca de un
-  minuto al despertar.
-- La base SQLite esta en disco temporal; en el plan gratis puede reiniciarse y
-  volver a los datos demo.
-- Para esta prueba no configures Gmail SMTP en Render Free. La recuperacion de
-  contrasena mostrara el token/link en pantalla mientras `EXPOSE_RESET_TOKEN`
-  este activo.
-- Cuando pasen a datos reales, conviene migrar la base a PostgreSQL y apagar
-  `EXPOSE_RESET_TOKEN`.
-
 ## Producción con PostgreSQL
 
-El archivo `render.production.yaml` describe la arquitectura recomendada:
-un servicio web Starter que entrega frontend y API, y una base PostgreSQL
-Basic 256 MB. No sustituyas `render.yaml` hasta aprobar los cargos en Render.
+`render.yaml` describe un servicio web Starter que entrega frontend y API, y
+una base PostgreSQL Basic 256 MB. `render.production.yaml` se conserva como
+copia equivalente de referencia.
 
 Antes del cambio:
 
@@ -89,3 +81,8 @@ SEED_DEMO_DATA=false
 EXPOSE_RESET_TOKEN=false
 JWT_SECRET=<valor largo y aleatorio>
 ```
+
+El comando de compilación del servicio debe ser
+`npm ci --include=dev && npm run build`. La opción `--include=dev` es necesaria
+porque Nest CLI y TypeScript participan en la compilación aunque
+`NODE_ENV=production`.

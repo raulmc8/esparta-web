@@ -1,47 +1,17 @@
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpen,
   CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
-  LockKeyhole,
   Mail,
-  ShieldCheck,
   Sparkles,
-  UserCog,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { api } from '../lib/api';
-import { Session, UserRole } from '../types';
+import { Session } from '../types';
 import { Brand } from '../components/Brand';
-
-const demoAccounts: Array<{
-  role: UserRole;
-  label: string;
-  identifier: string;
-  icon: typeof BookOpen;
-}> = [
-  {
-    role: 'STUDENT',
-    label: 'Alumno',
-    identifier: 'ESP-2026-0001',
-    icon: BookOpen,
-  },
-  {
-    role: 'TEACHER',
-    label: 'Docente',
-    identifier: 'DOC-2026-0001',
-    icon: UserCog,
-  },
-  {
-    role: 'ADMIN',
-    label: 'Administrativo',
-    identifier: 'ADMIN-ESPARTA',
-    icon: ShieldCheck,
-  },
-];
 
 type LoginMode = 'login' | 'forgot' | 'reset';
 
@@ -51,8 +21,8 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
   const [mode, setMode] = useState<LoginMode>(
     initialResetToken ? 'reset' : 'login',
   );
-  const [identifier, setIdentifier] = useState('ESP-2026-0001');
-  const [password, setPassword] = useState('Demo123!');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [resetToken, setResetToken] = useState(initialResetToken);
   const [newPassword, setNewPassword] = useState('');
@@ -95,7 +65,7 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
         setResetToken(response.resetToken);
         setMode('reset');
         setNotice(
-          'SMTP aún no está configurado; por ahora puedes definir la nueva contraseña desde esta pantalla de prueba.',
+          'Puedes definir una nueva contraseña para recuperar el acceso.',
         );
       } else {
         setNotice(response.message);
@@ -141,13 +111,6 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
     } finally {
       setLoading(false);
     }
-  }
-
-  function selectDemo(demoIdentifier: string) {
-    setIdentifier(demoIdentifier);
-    setPassword('Demo123!');
-    setError('');
-    setNotice('');
   }
 
   function showLogin() {
@@ -223,7 +186,7 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
                   type="text"
                   value={identifier}
                   onChange={(event) => setIdentifier(event.target.value)}
-                  placeholder="ESP-2026-0001"
+                  placeholder="Usuario o correo institucional"
                   autoComplete="username"
                   required
                 />
@@ -283,7 +246,7 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
                   type="text"
                   value={forgotIdentifier}
                   onChange={(event) => setForgotIdentifier(event.target.value)}
-                  placeholder="ESP-2026-0001 o nombre@esparta.edu.mx"
+                  placeholder="Usuario o nombre@esparta.edu.mx"
                   autoComplete="username"
                   required
                 />
@@ -371,41 +334,6 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
                 Volver al inicio de sesión
               </button>
             </form>
-          )}
-
-          {mode === 'login' && (
-            <div className="demo-access">
-            <div className="demo-access__label">
-              <span />
-              Acceso rápido de demostración
-              <span />
-            </div>
-            <div className="demo-grid">
-              {demoAccounts.map((account) => {
-                const Icon = account.icon;
-                return (
-                  <button
-                    key={account.role}
-                    type="button"
-                    className={
-                      identifier === account.identifier ? 'is-selected' : ''
-                    }
-                    onClick={() => selectDemo(account.identifier)}
-                  >
-                    <Icon size={18} />
-                    <span>
-                      <strong>{account.label}</strong>
-                      <small>Usar cuenta demo</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="demo-hint">
-              <LockKeyhole size={14} />
-              Contraseña para todas las cuentas: <code>Demo123!</code>
-            </p>
-          </div>
           )}
         </div>
       </section>

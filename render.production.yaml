@@ -10,7 +10,7 @@ services:
     name: instituto-esparta
     runtime: node
     plan: starter
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -31,9 +31,9 @@ services:
       - key: EXPOSE_RESET_TOKEN
         value: "false"
       - key: INITIAL_ADMIN_EMAIL
-        sync: false
+        value: admin@universidad.mx
       - key: INITIAL_ADMIN_USERNAME
-        sync: false
+        value: ADMIN-ESPARTA
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: INITIAL_ADMIN_FIRST_NAME
