@@ -30,7 +30,7 @@ export class CreateUserDto {
   email: string;
 
   @IsEnum(UserRole)
-  role: UserRole.STUDENT | UserRole.TEACHER;
+  role: UserRole.STUDENT | UserRole.TEACHER | UserRole.ADMIN;
 
   @IsOptional()
   @IsUUID()

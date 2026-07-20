@@ -17,6 +17,7 @@ import {
   UserPlus,
   Users,
   WalletCards,
+  GraduationCap,
   X,
   Trash2,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   AdminPayment,
   AdminTranscript,
   AdminUser,
+  AcademicStructure,
   PaymentStatus,
   User,
 } from '../types';
@@ -46,6 +48,7 @@ interface AdminData {
     enrollments: number;
     collected: number;
     pendingPayments: number;
+    careers: number;
   };
   teachers: AdminUser[];
   offerings: AdminOffering[];
@@ -126,6 +129,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [showOfferingModal, setShowOfferingModal] = useState(false);
   const [showCohortModal, setShowCohortModal] = useState(false);
+  const [showCareersModal, setShowCareersModal] = useState(false);
+  const [careers, setCareers] = useState<AcademicStructure['careers']>([]);
+  const [editingCareerId, setEditingCareerId] = useState('');
+  const [careerName, setCareerName] = useState('');
+  const [loadingCareers, setLoadingCareers] = useState(false);
+  const [savingCareer, setSavingCareer] = useState('');
+  const [editingCohortId, setEditingCohortId] = useState('');
+  const [cohortEditName, setCohortEditName] = useState('');
+  const [cohortEditStartsAt, setCohortEditStartsAt] = useState('');
   const [selectedOffering, setSelectedOffering] =
     useState<AdminOffering | null>(null);
   const [courseForm, setCourseForm] = useState<CourseForm>(
@@ -345,6 +357,102 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       );
     } finally {
       setSavingCohort(false);
+    }
+  }
+
+  async function openCareersManagement() {
+    setShowCareersModal(true);
+    setLoadingCareers(true);
+    setEditingCareerId('');
+    setEditingCohortId('');
+    setError('');
+    try {
+      const response = await api.get<AcademicStructure>(
+        '/admin/academic-structure',
+        token,
+      );
+      setCareers(response.careers);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No fue posible cargar las carreras',
+      );
+    } finally {
+      setLoadingCareers(false);
+    }
+  }
+
+  async function saveCareer(careerId: string) {
+    if (careerName.trim().length < 3) {
+      setError('El nombre de la carrera debe tener al menos 3 caracteres.');
+      return;
+    }
+    setSavingCareer(careerId);
+    setError('');
+    try {
+      await api.patch(`/admin/careers/${careerId}`, { name: careerName }, token);
+      setCareers((current) =>
+        current.map((career) =>
+          career.id === careerId ? { ...career, name: careerName.trim() } : career,
+        ),
+      );
+      setEditingCareerId('');
+      setSuccess('La carrera fue actualizada.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible actualizar la carrera');
+    } finally {
+      setSavingCareer('');
+    }
+  }
+
+  async function deleteCareer(careerId: string, name: string) {
+    if (!window.confirm(`¿Eliminar la carrera “${name}”? Sus generaciones dejarán de estar disponibles para nuevos registros.`)) return;
+    setSavingCareer(careerId);
+    setError('');
+    try {
+      await api.delete(`/admin/careers/${careerId}`, token);
+      setCareers((current) => current.filter((career) => career.id !== careerId));
+      await refreshDashboard();
+      setSuccess('La carrera fue eliminada de las opciones disponibles.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible eliminar la carrera');
+    } finally {
+      setSavingCareer('');
+    }
+  }
+
+  async function saveCohort(careerId: string, cohortId: string) {
+    if (cohortEditName.trim().length < 3 || !cohortEditStartsAt) {
+      setError('Completa el nombre de la generación y la fecha de ingreso.');
+      return;
+    }
+    setSavingCareer(cohortId);
+    setError('');
+    try {
+      const updated = await api.patch<{ id: string; name: string; startsAt: string }>(
+        `/admin/cohorts/${cohortId}`,
+        { name: cohortEditName, startsAt: cohortEditStartsAt },
+        token,
+      );
+      setCareers((current) =>
+        current.map((career) =>
+          career.id === careerId
+            ? {
+                ...career,
+                cohorts: career.cohorts.map((cohort) =>
+                  cohort.id === cohortId ? { ...cohort, ...updated } : cohort,
+                ),
+              }
+            : career,
+        ),
+      );
+      setEditingCohortId('');
+      setSuccess('La generación y su fecha de ingreso fueron actualizadas.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible actualizar la generación');
+    } finally {
+      setSavingCareer('');
     }
   }
 
@@ -687,6 +795,19 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       )}
 
       <section className="stats-grid stats-grid--admin">
+        <button
+          className="stat-card stat-card--interactive"
+          onClick={() => void openCareersManagement()}
+        >
+          <span className="stat-card__icon stat-card__icon--teal">
+            <GraduationCap size={22} />
+          </span>
+          <div>
+            <span>Carreras</span>
+            <strong>{data.metrics.careers}</strong>
+            <small>Administrar carreras creadas</small>
+          </div>
+        </button>
         <button
           className="stat-card stat-card--interactive"
           onClick={() => void openDirectory('STUDENT')}
@@ -1777,6 +1898,106 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {showCareersModal && (
+        <div className="modal-backdrop" onMouseDown={() => setShowCareersModal(false)}>
+          <div className="modal-card modal-card--wide" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-card__header">
+              <div>
+                <span className="eyebrow">ESTRUCTURA ACADÉMICA</span>
+                <h2>Administrar carreras</h2>
+              </div>
+              <button type="button" onClick={() => setShowCareersModal(false)}><X size={20} /></button>
+            </div>
+            <p className="academic-structure-help">
+              Actualiza el nombre de una carrera o elimínala de las opciones disponibles. Los datos históricos de sus alumnos se conservarán.
+            </p>
+            {loadingCareers ? (
+              <LoadingState label="Cargando carreras" />
+            ) : careers.length === 0 ? (
+              <div className="academic-empty-state">
+                <GraduationCap size={28} />
+                <strong>No hay carreras registradas</strong>
+                <p>Crea una carrera y generación para verla aquí.</p>
+              </div>
+            ) : (
+              <div className="career-management-list">
+                {careers.map((career) => (
+                  <article className="career-management-item" key={career.id}>
+                    <div className="career-management-item__content">
+                      {editingCareerId === career.id ? (
+                        <input
+                          aria-label="Nombre de la carrera"
+                          value={careerName}
+                          onChange={(event) => setCareerName(event.target.value)}
+                          autoFocus
+                        />
+                      ) : (
+                        <div>
+                          <strong>{career.name}</strong>
+                          <small>{career.cohorts.length} {career.cohorts.length === 1 ? 'generación' : 'generaciones'}</small>
+                        </div>
+                      )}
+                    </div>
+                    <div className="career-management-item__actions">
+                      {editingCareerId === career.id ? (
+                        <>
+                          <button className="icon-button icon-button--success" type="button" aria-label="Guardar carrera" disabled={savingCareer === career.id} onClick={() => void saveCareer(career.id)}><Check size={18} /></button>
+                          <button className="icon-button" type="button" aria-label="Cancelar edición" onClick={() => setEditingCareerId('')}><X size={18} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="icon-button" type="button" aria-label={`Editar ${career.name}`} onClick={() => { setEditingCareerId(career.id); setCareerName(career.name); }}><Pencil size={17} /></button>
+                          <button className="icon-button icon-button--danger" type="button" aria-label={`Eliminar ${career.name}`} disabled={savingCareer === career.id} onClick={() => void deleteCareer(career.id, career.name)}><Trash2 size={17} /></button>
+                        </>
+                      )}
+                    </div>
+                    {editingCareerId !== career.id && (
+                      <div className="career-cohort-list">
+                        {career.cohorts.map((cohort) => (
+                          <div className="career-cohort-item" key={cohort.id}>
+                            {editingCohortId === cohort.id ? (
+                              <div className="career-cohort-item__fields">
+                                <label className="field">
+                                  <span>Nombre de la generación</span>
+                                  <input value={cohortEditName} onChange={(event) => setCohortEditName(event.target.value)} autoFocus />
+                                </label>
+                                <label className="field">
+                                  <span>Fecha de ingreso</span>
+                                  <input type="date" value={cohortEditStartsAt} onChange={(event) => setCohortEditStartsAt(event.target.value)} />
+                                </label>
+                              </div>
+                            ) : (
+                              <div className="career-cohort-item__summary">
+                                <span>{cohort.name}</span>
+                                <small>Ingreso: {new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(cohort.startsAt))}</small>
+                              </div>
+                            )}
+                            <div className="career-management-item__actions">
+                              {editingCohortId === cohort.id ? (
+                                <>
+                                  <button className="icon-button icon-button--success" type="button" aria-label="Guardar generación" disabled={savingCareer === cohort.id} onClick={() => void saveCohort(career.id, cohort.id)}><Check size={17} /></button>
+                                  <button className="icon-button" type="button" aria-label="Cancelar edición de generación" onClick={() => setEditingCohortId('')}><X size={17} /></button>
+                                </>
+                              ) : (
+                                <button className="icon-button" type="button" aria-label={`Editar generación ${cohort.name}`} onClick={() => { setEditingCohortId(cohort.id); setCohortEditName(cohort.name); setCohortEditStartsAt(cohort.startsAt.slice(0, 10)); }}><Pencil size={16} /></button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="button button--secondary" onClick={() => setShowCareersModal(false)}>Cerrar</button>
+              <button type="button" className="button button--primary" onClick={() => { setShowCareersModal(false); setShowCohortModal(true); }}><CalendarPlus size={17} />Nueva carrera y generación</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -36,6 +36,8 @@ import { UpdateOfferingDto } from './dto/update-offering.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { UpdateStudentPaymentDto } from './dto/update-student-payment.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateCareerDto } from './dto/update-career.dto';
+import { UpdateCohortDto } from './dto/update-cohort.dto';
 
 @Injectable()
 export class AdminService {
@@ -63,7 +65,7 @@ export class AdminService {
   ) {}
 
   async getDashboard() {
-    const [users, teachers, payments, enrollmentCount, offerings] =
+    const [users, teachers, payments, enrollmentCount, offerings, careerCount] =
       await Promise.all([
       this.usersRepository.find(),
       this.usersRepository.find({
@@ -84,6 +86,7 @@ export class AdminService {
         },
         order: { startsAt: 'DESC' },
       }),
+      this.careersRepository.count({ where: { active: true } }),
     ]);
 
     const paidPayments = payments.filter(
@@ -107,6 +110,7 @@ export class AdminService {
         pendingPayments: payments.filter(
           (payment) => payment.status === PaymentStatus.PENDING,
         ).length,
+        careers: careerCount,
       },
       teachers: teachers.map((teacher) => this.toSafeUser(teacher)),
       offerings: offerings.map((offering) => ({
@@ -193,11 +197,10 @@ export class AdminService {
   async createUser(values: CreateUserDto) {
     if (
       values.role !== UserRole.STUDENT &&
-      values.role !== UserRole.TEACHER
+      values.role !== UserRole.TEACHER &&
+      values.role !== UserRole.ADMIN
     ) {
-      throw new BadRequestException(
-        'Solo se pueden crear cuentas de alumnos o docentes',
-      );
+      throw new BadRequestException('El perfil seleccionado no es válido');
     }
 
     const email = values.email.trim().toLowerCase();
@@ -278,12 +281,13 @@ export class AdminService {
 
   async listUsers(
     query: string,
-    role?: UserRole.STUDENT | UserRole.TEACHER,
+    role?: UserRole.STUDENT | UserRole.TEACHER | UserRole.ADMIN,
   ) {
     if (
       role &&
       role !== UserRole.STUDENT &&
-      role !== UserRole.TEACHER
+      role !== UserRole.TEACHER &&
+      role !== UserRole.ADMIN
     ) {
       throw new BadRequestException('El perfil solicitado no es válido');
     }
@@ -294,7 +298,9 @@ export class AdminService {
       .leftJoinAndSelect('user.cohort', 'cohort')
       .leftJoinAndSelect('cohort.career', 'career')
       .where('user.role IN (:...roles)', {
-        roles: role ? [role] : [UserRole.STUDENT, UserRole.TEACHER],
+        roles: role
+          ? [role]
+          : [UserRole.STUDENT, UserRole.TEACHER, UserRole.ADMIN],
       });
 
     if (normalizedQuery) {
@@ -448,6 +454,9 @@ export class AdminService {
       career = await this.careersRepository.save(
         this.careersRepository.create({ name: careerName, active: true }),
       );
+    } else if (!career.active) {
+      career.active = true;
+      career = await this.careersRepository.save(career);
     }
 
     const duplicate = await this.cohortsRepository
@@ -481,6 +490,85 @@ export class AdminService {
       studentCount: 0,
       career: { id: career.id, name: career.name },
     };
+  }
+
+  async updateCareer(careerId: string, values: UpdateCareerDto) {
+    const career = await this.careersRepository.findOne({
+      where: { id: careerId, active: true },
+    });
+    if (!career) {
+      throw new NotFoundException('Carrera no encontrada');
+    }
+
+    const name = values.name.trim();
+    const duplicate = await this.careersRepository
+      .createQueryBuilder('career')
+      .where('LOWER(career.name) = :name', { name: name.toLowerCase() })
+      .andWhere('career.id != :careerId', { careerId })
+      .getOne();
+    if (duplicate) {
+      throw new BadRequestException('Ya existe una carrera con ese nombre');
+    }
+
+    career.name = name;
+    await this.careersRepository.save(career);
+    return { id: career.id, name: career.name };
+  }
+
+  async updateCohort(cohortId: string, values: UpdateCohortDto) {
+    const cohort = await this.cohortsRepository.findOne({
+      where: { id: cohortId, active: true },
+      relations: { career: true },
+    });
+    if (!cohort) {
+      throw new NotFoundException('Generación no encontrada');
+    }
+
+    const name = values.name.trim();
+    const duplicate = await this.cohortsRepository
+      .createQueryBuilder('cohort')
+      .leftJoin('cohort.career', 'career')
+      .where('career.id = :careerId', { careerId: cohort.career.id })
+      .andWhere('LOWER(cohort.name) = :name', { name: name.toLowerCase() })
+      .andWhere('cohort.id != :cohortId', { cohortId })
+      .getOne();
+    if (duplicate) {
+      throw new BadRequestException(
+        'Ya existe una generación con ese nombre dentro de la carrera',
+      );
+    }
+
+    cohort.name = name;
+    cohort.startsAt = this.parseDateBoundary(values.startsAt, false);
+    await this.cohortsRepository.save(cohort);
+    return {
+      id: cohort.id,
+      name: cohort.name,
+      startsAt: cohort.startsAt,
+    };
+  }
+
+  async deleteCareer(careerId: string) {
+    const career = await this.careersRepository.findOne({
+      where: { id: careerId, active: true },
+      relations: { cohorts: true },
+    });
+    if (!career) {
+      throw new NotFoundException('Carrera no encontrada');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      career.active = false;
+      await manager.getRepository(Career).save(career);
+      if (career.cohorts.length) {
+        await manager.getRepository(Cohort).update(
+          { id: In(career.cohorts.map((cohort) => cohort.id)) },
+          { active: false },
+        );
+      }
+    });
+
+    return { id: career.id, deleted: true };
   }
 
   async createOffering(values: CreateCourseOfferingDto) {
@@ -819,7 +907,7 @@ export class AdminService {
       if (
         changes.role !== UserRole.STUDENT &&
         changes.role !== UserRole.TEACHER &&
-        user.id !== currentUser.id
+        changes.role !== UserRole.ADMIN
       ) {
         throw new BadRequestException('El perfil seleccionado no es válido');
       }
@@ -843,7 +931,10 @@ export class AdminService {
       }
       user.cohort = cohort;
     }
-    if (changes.role === UserRole.TEACHER) {
+    if (
+      changes.role === UserRole.TEACHER ||
+      changes.role === UserRole.ADMIN
+    ) {
       user.cohort = null;
     }
 

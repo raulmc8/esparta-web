@@ -42,7 +42,7 @@ const initialForm = {
   firstName: '',
   lastName: '',
   email: '',
-  role: 'STUDENT' as 'STUDENT' | 'TEACHER',
+  role: 'STUDENT' as 'STUDENT' | 'TEACHER' | 'ADMIN',
   careerId: '',
   cohortId: '',
 };
@@ -67,9 +67,9 @@ export function AdminUserManagement({
   const [editingCareerId, setEditingCareerId] = useState('');
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'TEACHER'>(
-    'ALL',
-  );
+  const [roleFilter, setRoleFilter] = useState<
+    'ALL' | 'STUDENT' | 'TEACHER' | 'ADMIN'
+  >('ALL');
   const [statusFilter, setStatusFilter] = useState<
     'ALL' | 'ACTIVE' | 'INACTIVE'
   >('ALL');
@@ -260,7 +260,11 @@ export function AdminUserManagement({
   async function copyCredentials() {
     if (!createdAccount) return;
     const role =
-      createdAccount.user.role === 'STUDENT' ? 'Alumno' : 'Docente';
+      createdAccount.user.role === 'STUDENT'
+        ? 'Alumno'
+        : createdAccount.user.role === 'TEACHER'
+          ? 'Docente'
+          : 'Administrador';
     const credentials = [
       'Instituto Universitario Esparta',
       `Perfil: ${role}`,
@@ -376,7 +380,7 @@ export function AdminUserManagement({
           <span className="eyebrow">GESTIÓN DE USUARIOS</span>
           <h1>Altas y directorio</h1>
           <p>
-            Crea, consulta, modifica y elimina cuentas de alumnos y docentes.
+            Crea y administra cuentas de alumnos, docentes y administradores.
           </p>
         </div>
         <div className="admin-access">
@@ -435,6 +439,24 @@ export function AdminUserManagement({
               <span>
                 <strong>Docente</strong>
                 <small>Usuario capturado manualmente</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={form.role === 'ADMIN' ? 'is-selected' : ''}
+              onClick={() =>
+                setForm({
+                  ...form,
+                  role: 'ADMIN',
+                  careerId: '',
+                  cohortId: '',
+                })
+              }
+            >
+              <ShieldCheck size={20} />
+              <span>
+                <strong>Administrador</strong>
+                <small>Acceso completo al sistema</small>
               </span>
             </button>
           </div>
@@ -621,7 +643,9 @@ export function AdminUserManagement({
                     <small>
                       {createdAccount.user.role === 'STUDENT'
                         ? 'Alumno'
-                        : 'Docente'}
+                        : createdAccount.user.role === 'TEACHER'
+                          ? 'Docente'
+                          : 'Administrador'}
                     </small>
                   </div>
                 </div>
@@ -748,13 +772,18 @@ export function AdminUserManagement({
             value={roleFilter}
             onChange={(event) =>
               setRoleFilter(
-                event.target.value as 'ALL' | 'STUDENT' | 'TEACHER',
+                event.target.value as
+                  | 'ALL'
+                  | 'STUDENT'
+                  | 'TEACHER'
+                  | 'ADMIN',
               )
             }
           >
-            <option value="ALL">Alumnos y docentes</option>
+            <option value="ALL">Todos los perfiles</option>
             <option value="STUDENT">Solo alumnos</option>
             <option value="TEACHER">Solo docentes</option>
+            <option value="ADMIN">Solo administradores</option>
           </select>
           <select
             value={statusFilter}
@@ -845,10 +874,16 @@ export function AdminUserManagement({
                   className={`role-badge ${
                     account.role === 'STUDENT'
                       ? 'role-student'
-                      : 'role-teacher'
+                      : account.role === 'TEACHER'
+                        ? 'role-teacher'
+                        : 'role-admin'
                   }`}
                 >
-                  {account.role === 'STUDENT' ? 'Alumno' : 'Docente'}
+                  {account.role === 'STUDENT'
+                    ? 'Alumno'
+                    : account.role === 'TEACHER'
+                      ? 'Docente'
+                      : 'Administrador'}
                 </span>
                 <span
                   className={`status-dot ${
@@ -875,13 +910,15 @@ export function AdminUserManagement({
                   >
                     <Pencil size={17} />
                   </button>
-                  <button
-                    className="icon-button icon-button--danger"
-                    onClick={() => setDeletingUser(account)}
-                    title="Eliminar usuario"
-                  >
-                    <Trash2 size={17} />
-                  </button>
+                  {account.role !== 'ADMIN' && (
+                    <button
+                      className="icon-button icon-button--danger"
+                      onClick={() => setDeletingUser(account)}
+                      title="Eliminar usuario"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  )}
                 </div>
               </article>
             ))}

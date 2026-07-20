@@ -25,6 +25,8 @@ import { UpdateOfferingDto } from './dto/update-offering.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { UpdateStudentPaymentDto } from './dto/update-student-payment.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateCareerDto } from './dto/update-career.dto';
+import { UpdateCohortDto } from './dto/update-cohort.dto';
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -50,6 +52,27 @@ export class AdminController {
   @Post('cohorts')
   createCohort(@Body() values: CreateCohortDto) {
     return this.adminService.createCohort(values);
+  }
+
+  @Patch('careers/:id')
+  updateCareer(
+    @Param('id') careerId: string,
+    @Body() values: UpdateCareerDto,
+  ) {
+    return this.adminService.updateCareer(careerId, values);
+  }
+
+  @Delete('careers/:id')
+  deleteCareer(@Param('id') careerId: string) {
+    return this.adminService.deleteCareer(careerId);
+  }
+
+  @Patch('cohorts/:id')
+  updateCohort(
+    @Param('id') cohortId: string,
+    @Body() values: UpdateCohortDto,
+  ) {
+    return this.adminService.updateCohort(cohortId, values);
   }
 
   @Post('offerings')
@@ -97,7 +120,7 @@ export class AdminController {
   @Get('users')
   listUsers(
     @Query('q') query = '',
-    @Query('role') role?: UserRole.STUDENT | UserRole.TEACHER,
+    @Query('role') role?: UserRole.STUDENT | UserRole.TEACHER | UserRole.ADMIN,
   ) {
     return this.adminService.listUsers(query, role);
   }

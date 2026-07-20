@@ -810,7 +810,7 @@ code {
 }
 
 .stats-grid--admin {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .stat-card {
@@ -870,6 +870,122 @@ code {
 .stat-card__icon--purple {
   color: #7554c1;
   background: #f1edfb;
+}
+
+.stat-card__icon--teal {
+  color: #087e8b;
+  background: #e8f7f8;
+}
+
+.role-badge.role-admin {
+  color: #6b45b5;
+  background: #f1edfb;
+}
+
+.career-management-list {
+  display: grid;
+  gap: 10px;
+  max-height: 430px;
+  overflow-y: auto;
+}
+
+.career-management-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  flex-wrap: wrap;
+}
+
+.career-management-item__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.career-management-item__content strong,
+.career-management-item__content small {
+  display: block;
+}
+
+.career-management-item__content strong {
+  color: var(--ink);
+}
+
+.career-management-item__content small {
+  margin-top: 4px;
+  color: #8792a6;
+}
+
+.career-management-item__content input {
+  width: 100%;
+  border: 1px solid #aac2ec;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.career-management-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.career-cohort-list {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  border-top: 1px solid #edf0f5;
+  padding-top: 12px;
+}
+
+.career-cohort-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #f7f9fc;
+}
+
+.career-cohort-item__summary span,
+.career-cohort-item__summary small {
+  display: block;
+}
+
+.career-cohort-item__summary span {
+  color: #34425a;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.career-cohort-item__summary small {
+  margin-top: 3px;
+  color: #8792a6;
+  font-size: 0.7rem;
+}
+
+.career-cohort-item__fields {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  grid-template-columns: 1fr 180px;
+  gap: 10px;
+}
+
+.career-cohort-item__fields .field {
+  gap: 5px;
+}
+
+.career-cohort-item__fields .field span {
+  font-size: 0.68rem;
+}
+
+.career-cohort-item__fields .field input {
+  padding: 9px 10px;
 }
 
 .stat-card > div {
@@ -2106,7 +2222,7 @@ tbody tr:hover {
 
 .account-role-selector {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 20px;
 }

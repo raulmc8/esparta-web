@@ -52,8 +52,8 @@ export class SeedService implements OnApplicationBootstrap {
           email: 'admin@universidad.mx',
           username: 'ADMIN-ESPARTA',
           passwordHash,
-          firstName: 'Sofía',
-          lastName: 'Ramírez',
+          firstName: 'Ariana',
+          lastName: 'Landero',
           role: UserRole.ADMIN,
         }),
         this.usersRepository.create({
@@ -232,6 +232,15 @@ export class SeedService implements OnApplicationBootstrap {
         user.active = true;
         user.role = account.role;
         user.username = account.username;
+        await this.usersRepository.save(user);
+      }
+      if (
+        user &&
+        account.role === UserRole.ADMIN &&
+        (user.firstName !== 'Ariana' || user.lastName !== 'Landero')
+      ) {
+        user.firstName = 'Ariana';
+        user.lastName = 'Landero';
         await this.usersRepository.save(user);
       }
     }
