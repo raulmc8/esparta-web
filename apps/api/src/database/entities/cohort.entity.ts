@@ -18,7 +18,7 @@ export class Cohort {
   @Column()
   name: string;
 
-  @Column({ type: 'datetime' })
+  @Column()
   startsAt: Date;
 
   @Column({ default: true })

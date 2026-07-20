@@ -38,6 +38,16 @@ export class SeedService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    const shouldSeedDemo =
+      process.env.SEED_DEMO_DATA === 'true' ||
+      !process.env.DATABASE_URL ||
+      process.env.NODE_ENV !== 'production';
+
+    if (!shouldSeedDemo) {
+      await this.ensureInitialProductionAdmin();
+      return;
+    }
+
     if ((await this.usersRepository.count()) > 0) {
       await this.repairDemoAccounts();
       await this.backfillMonthlyOfferingDates();
@@ -189,6 +199,39 @@ export class SeedService implements OnApplicationBootstrap {
     ]);
 
     void admin;
+  }
+
+  private async ensureInitialProductionAdmin() {
+    if ((await this.usersRepository.count()) > 0) return;
+
+    const email = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+    const username = process.env.INITIAL_ADMIN_USERNAME?.trim().toUpperCase();
+    const password = process.env.INITIAL_ADMIN_PASSWORD;
+    const firstName = process.env.INITIAL_ADMIN_FIRST_NAME?.trim();
+    const lastName = process.env.INITIAL_ADMIN_LAST_NAME?.trim();
+
+    if (!email || !username || !password || !firstName || !lastName) {
+      throw new Error(
+        'La base está vacía. Configura INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_USERNAME, INITIAL_ADMIN_PASSWORD, INITIAL_ADMIN_FIRST_NAME e INITIAL_ADMIN_LAST_NAME.',
+      );
+    }
+    if (password.length < 10 || password === 'Demo123!') {
+      throw new Error(
+        'INITIAL_ADMIN_PASSWORD debe tener al menos 10 caracteres y no puede ser la contraseña demo.',
+      );
+    }
+
+    await this.usersRepository.save(
+      this.usersRepository.create({
+        email,
+        username,
+        passwordHash: await hash(password, 10),
+        firstName,
+        lastName,
+        role: UserRole.ADMIN,
+        active: true,
+      }),
+    );
   }
 
   private async repairDemoAccounts() {

@@ -10,10 +10,10 @@ export class Term {
   @Column({ unique: true })
   name: string;
 
-  @Column({ type: 'datetime' })
+  @Column()
   startsAt: Date;
 
-  @Column({ type: 'datetime' })
+  @Column()
   endsAt: Date;
 
   @Column({ default: true })
@@ -25,4 +25,3 @@ export class Term {
   @OneToMany(() => Payment, (payment) => payment.term)
   payments: Payment[];
 }
-

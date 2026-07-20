@@ -1,0 +1,42 @@
+# Blueprint de producción. Aplicarlo crea recursos pagados en Render.
+databases:
+  - name: instituto-esparta-db
+    plan: basic-256mb
+    databaseName: instituto_esparta
+    user: instituto_esparta
+
+services:
+  - type: web
+    name: instituto-esparta
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: instituto-esparta-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: "false"
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: EXPOSE_RESET_TOKEN
+        value: "false"
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_USERNAME
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_FIRST_NAME
+        value: Ariana
+      - key: INITIAL_ADMIN_LAST_NAME
+        value: Landero

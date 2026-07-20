@@ -28,10 +28,10 @@ export class CourseOffering {
   })
   status: OfferingStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: Date, nullable: true })
   startsAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: Date, nullable: true })
   endsAt: Date | null;
 
   @ManyToOne(() => Course, (course) => course.offerings, { nullable: false })

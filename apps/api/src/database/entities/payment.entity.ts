@@ -26,7 +26,7 @@ export class Payment {
   @Column({ type: 'float', default: 0 })
   amount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: Date, nullable: true })
   paidAt: Date | null;
 
   @ManyToOne(() => User, (student) => student.payments, { nullable: false })
@@ -38,4 +38,3 @@ export class Payment {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-
