@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import { User } from '../database/entities';
 
 interface MailMessage {
