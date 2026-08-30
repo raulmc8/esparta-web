@@ -3085,6 +3085,14 @@ tbody tr:hover {
   margin: 18px 22px 22px;
 }
 
+.payment-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 82px;
+}
+
 .offering-save-actions {
   position: sticky;
   z-index: 2;

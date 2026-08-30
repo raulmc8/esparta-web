@@ -159,6 +159,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
   const [creatingOffering, setCreatingOffering] = useState(false);
   const [savingCohort, setSavingCohort] = useState(false);
   const [savingPayment, setSavingPayment] = useState('');
+  const [deletingPayment, setDeletingPayment] = useState('');
   const [savedPayment, setSavedPayment] = useState('');
   const [paymentQuery, setPaymentQuery] = useState('');
   const [offeringQuery, setOfferingQuery] = useState('');
@@ -595,6 +596,21 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       setError(requestError instanceof Error ? requestError.message : 'No fue posible crear el periodo de pago');
     } finally {
       setSavingPayment('');
+    }
+  }
+
+  async function deletePaymentRecord(payment: AdminPayment) {
+    if (!window.confirm(`¿Eliminar el pago de ${payment.student.name} correspondiente a “${payment.term}”?`)) return;
+    setDeletingPayment(payment.id);
+    setError('');
+    try {
+      await api.delete(`/admin/payments/${payment.id}`, token);
+      await refreshDashboard();
+      setSuccess('El registro de pago fue eliminado.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible eliminar el pago');
+    } finally {
+      setDeletingPayment('');
     }
   }
 
@@ -1685,22 +1701,26 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                       />
                     </td>
                     <td>
-                      <button
-                        className={`icon-button ${
-                          savedPayment === payment.id
-                            ? 'icon-button--saved'
-                            : ''
-                        }`}
-                        onClick={() => savePayment(payment)}
-                        disabled={savingPayment === payment.id}
-                        title="Guardar pago"
-                      >
-                        {savedPayment === payment.id ? (
-                          <Check size={18} />
-                        ) : (
-                          <Save size={18} />
-                        )}
-                      </button>
+                      <div className="payment-row-actions">
+                        <button
+                          className={`icon-button ${savedPayment === payment.id ? 'icon-button--saved' : ''}`}
+                          onClick={() => savePayment(payment)}
+                          disabled={savingPayment === payment.id || deletingPayment === payment.id}
+                          title="Guardar pago"
+                          aria-label={`Guardar pago de ${payment.student.name}`}
+                        >
+                          {savedPayment === payment.id ? <Check size={18} /> : <Save size={18} />}
+                        </button>
+                        <button
+                          className="icon-button icon-button--danger"
+                          onClick={() => void deletePaymentRecord(payment)}
+                          disabled={deletingPayment === payment.id || savingPayment === payment.id}
+                          title="Eliminar pago"
+                          aria-label={`Eliminar pago de ${payment.student.name} del periodo ${payment.term}`}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

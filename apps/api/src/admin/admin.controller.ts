@@ -174,6 +174,11 @@ export class AdminController {
     return this.adminService.updatePayment(paymentId, changes);
   }
 
+  @Delete('payments/:id')
+  deletePayment(@Param('id') paymentId: string) {
+    return this.adminService.deletePayment(paymentId);
+  }
+
   @Post('payments')
   createPayment(@Body() values: CreateStudentPaymentDto) {
     return this.adminService.createStudentPayment(values);

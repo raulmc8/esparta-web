@@ -1245,6 +1245,21 @@ export class AdminService {
     };
   }
 
+  async deletePayment(paymentId: string) {
+    const payment = await this.paymentsRepository.findOne({
+      where: { id: paymentId },
+      relations: { student: true, term: true },
+    });
+    if (!payment) throw new NotFoundException('Registro de pago no encontrado');
+    await this.paymentsRepository.remove(payment);
+    return {
+      id: paymentId,
+      deleted: true,
+      studentId: payment.student.id,
+      term: payment.term.name,
+    };
+  }
+
   async createStudentPayment(values: CreateStudentPaymentDto) {
     const student = await this.usersRepository.findOne({
       where: { id: values.studentId, role: UserRole.STUDENT, active: true },

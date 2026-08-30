@@ -158,6 +158,21 @@ describe('Campus API', () => {
 
     expect(response.body.status).toBe('PAID');
     expect(response.body.paidAt).toContain('2026-02-14');
+
+    await request(app.getHttpServer())
+      .delete(`/api/admin/payments/${pendingPayment.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const dashboardAfterDelete = await request(app.getHttpServer())
+      .get('/api/admin/dashboard')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      dashboardAfterDelete.body.payments.some(
+        (payment: { id: string }) => payment.id === pendingPayment.id,
+      ),
+    ).toBe(false);
   });
 
   it('permite al admin ocultar un alumno únicamente en una materia', async () => {
