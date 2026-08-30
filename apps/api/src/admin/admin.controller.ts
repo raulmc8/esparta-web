@@ -76,6 +76,11 @@ export class AdminController {
     return this.adminService.updateCohort(cohortId, values);
   }
 
+  @Delete('cohorts/:id')
+  deleteCohort(@Param('id') cohortId: string) {
+    return this.adminService.deleteCohort(cohortId);
+  }
+
   @Post('offerings')
   createOffering(@Body() values: CreateCourseOfferingDto) {
     return this.adminService.createOffering(values);

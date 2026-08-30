@@ -585,6 +585,17 @@ export class AdminService {
     };
   }
 
+  async deleteCohort(cohortId: string) {
+    const cohort = await this.cohortsRepository.findOne({
+      where: { id: cohortId, active: true },
+      relations: { students: true },
+    });
+    if (!cohort) throw new NotFoundException('Generación no encontrada');
+    cohort.active = false;
+    await this.cohortsRepository.save(cohort);
+    return { id: cohort.id, deleted: true, studentCount: cohort.students.length };
+  }
+
   async deleteCareer(careerId: string) {
     const career = await this.careersRepository.findOne({
       where: { id: careerId, active: true },
@@ -780,7 +791,7 @@ export class AdminService {
     const [offering, teacher] = await Promise.all([
       this.offeringsRepository.findOne({
         where: { id: offeringId },
-        relations: { course: true, teacher: true },
+        relations: { course: { career: true }, teacher: true, cohort: { career: true } },
       }),
       this.usersRepository.findOne({
         where: { id: values.teacherId, role: UserRole.TEACHER, active: true },
@@ -793,7 +804,25 @@ export class AdminService {
       throw new BadRequestException('El docente seleccionado no es válido');
     }
 
+    if (values.careerId) {
+      const career = await this.careersRepository.findOne({ where: { id: values.careerId, active: true } });
+      if (!career) throw new BadRequestException('La carrera seleccionada no es válida');
+      offering.course.career = career;
+      if (values.cohortId) {
+        const cohort = await this.cohortsRepository.findOne({
+          where: { id: values.cohortId, career: { id: career.id }, active: true },
+        });
+        if (!cohort) throw new BadRequestException('La generación no pertenece a la carrera seleccionada');
+        offering.cohort = cohort;
+      } else if (values.cohortId === null) {
+        offering.cohort = null;
+      }
+    }
+    if (values.courseCode) offering.course.code = values.courseCode.trim().toUpperCase();
+    if (values.courseName) offering.course.name = values.courseName.trim();
+    if (values.quadrimester !== undefined) offering.quadrimester = values.quadrimester;
     offering.teacher = teacher;
+    await this.coursesRepository.save(offering.course);
     await this.offeringsRepository.save(offering);
     return {
       id: offering.id,
@@ -801,6 +830,10 @@ export class AdminService {
         id: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
       },
+      course: { code: offering.course.code, name: offering.course.name },
+      career: offering.course.career ? { id: offering.course.career.id, name: offering.course.career.name } : null,
+      cohort: offering.cohort ? { id: offering.cohort.id, name: offering.cohort.name } : null,
+      quadrimester: offering.quadrimester,
     };
   }
 
@@ -1185,12 +1218,20 @@ export class AdminService {
   }
 
   async createStudentPayment(values: CreateStudentPaymentDto) {
-    const [student, term] = await Promise.all([
-      this.usersRepository.findOne({ where: { id: values.studentId, role: UserRole.STUDENT, active: true } }),
-      this.termsRepository.findOne({ where: { id: values.termId } }),
-    ]);
+    const student = await this.usersRepository.findOne({
+      where: { id: values.studentId, role: UserRole.STUDENT, active: true },
+    });
+    let term = values.termId
+      ? await this.termsRepository.findOne({ where: { id: values.termId } })
+      : null;
+    if (!term && values.period) {
+      term = await this.resolveTerm(
+        new Date(`${values.period}-01T00:00:00.000Z`),
+        this.dataSource.manager,
+      );
+    }
     if (!student) throw new BadRequestException('El alumno seleccionado no es válido');
-    if (!term) throw new BadRequestException('El periodo seleccionado no es válido');
+    if (!term) throw new BadRequestException('Selecciona un periodo mensual válido');
     const existing = await this.paymentsRepository.findOne({
       where: { student: { id: student.id }, term: { id: term.id } },
     });
@@ -1347,17 +1388,24 @@ export class AdminService {
     const termRepository = manager.getRepository(Term);
     const terms = await termRepository.find();
     const matchingTerm = terms.find(
-      (term) => term.startsAt <= startsAt && term.endsAt >= startsAt,
+      (term) =>
+        term.startsAt.getUTCFullYear() === startsAt.getUTCFullYear() &&
+        term.startsAt.getUTCMonth() === startsAt.getUTCMonth() &&
+        term.endsAt.getUTCMonth() === startsAt.getUTCMonth(),
     );
     if (matchingTerm) {
       return matchingTerm;
     }
 
     const year = startsAt.getUTCFullYear();
-    const firstSemester = startsAt.getUTCMonth() < 6;
-    const name = firstSemester
-      ? `Enero - Junio ${year}`
-      : `Julio - Diciembre ${year}`;
+    const month = startsAt.getUTCMonth();
+    const name = new Intl.DateTimeFormat('es-MX', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+      .format(startsAt)
+      .replace(/^./, (letter) => letter.toUpperCase());
     const existingByName = await termRepository.findOne({ where: { name } });
     if (existingByName) {
       return existingByName;
@@ -1366,12 +1414,8 @@ export class AdminService {
     return termRepository.save(
       termRepository.create({
         name,
-        startsAt: new Date(
-          `${year}-${firstSemester ? '01-01' : '07-01'}T00:00:00.000Z`,
-        ),
-        endsAt: new Date(
-          `${year}-${firstSemester ? '06-30' : '12-31'}T23:59:59.999Z`,
-        ),
+        startsAt: new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)),
+        endsAt: new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)),
         active: true,
       }),
     );
