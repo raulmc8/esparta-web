@@ -38,6 +38,7 @@ import { UpdateStudentPaymentDto } from './dto/update-student-payment.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateCareerDto } from './dto/update-career.dto';
 import { UpdateCohortDto } from './dto/update-cohort.dto';
+import { CreateStudentPaymentDto } from './dto/create-student-payment.dto';
 
 @Injectable()
 export class AdminService {
@@ -65,7 +66,7 @@ export class AdminService {
   ) {}
 
   async getDashboard() {
-    const [users, teachers, payments, enrollmentCount, offerings, careerCount] =
+    const [users, teachers, payments, enrollmentCount, offerings, careerCount, terms] =
       await Promise.all([
       this.usersRepository.find(),
       this.usersRepository.find({
@@ -79,14 +80,16 @@ export class AdminService {
       this.enrollmentsRepository.count(),
       this.offeringsRepository.find({
         relations: {
-          course: true,
+          course: { career: true },
           teacher: true,
           term: true,
+          cohort: { career: true },
           enrollments: { student: true, grade: true },
         },
         order: { startsAt: 'DESC' },
       }),
       this.careersRepository.count({ where: { active: true } }),
+      this.termsRepository.find({ order: { startsAt: 'DESC' } }),
     ]);
 
     const paidPayments = payments.filter(
@@ -124,6 +127,13 @@ export class AdminService {
           code: offering.course.code,
           name: offering.course.name,
         },
+        career: offering.course.career
+          ? { id: offering.course.career.id, name: offering.course.career.name }
+          : null,
+        cohort: offering.cohort
+          ? { id: offering.cohort.id, name: offering.cohort.name }
+          : null,
+        quadrimester: offering.quadrimester,
         teacher: {
           id: offering.teacher.id,
           name: `${offering.teacher.firstName} ${offering.teacher.lastName}`,
@@ -157,10 +167,25 @@ export class AdminService {
           email: payment.student.email,
         },
         term: payment.term.name,
+        termId: payment.term.id,
         status: payment.status,
         amount: payment.amount,
         paidAt: payment.paidAt,
         updatedAt: payment.updatedAt,
+      })),
+      paymentStudents: users
+        .filter((candidate) => candidate.role === UserRole.STUDENT && candidate.active)
+        .map((student) => ({
+          id: student.id,
+          name: `${student.firstName} ${student.lastName}`,
+          email: student.email,
+        }))
+        .sort((first, second) => first.name.localeCompare(second.name, 'es')),
+      terms: terms.map((term) => ({
+        id: term.id,
+        name: term.name,
+        startsAt: term.startsAt,
+        endsAt: term.endsAt,
       })),
     };
   }
@@ -443,8 +468,8 @@ export class AdminService {
   }
 
   async createCohort(values: CreateCohortDto) {
-    const careerName = values.careerName.trim();
-    const cohortName = values.cohortName.trim();
+    const careerName = this.normalizeLabel(values.careerName);
+    const cohortName = this.normalizeLabel(values.cohortName);
     let career = await this.careersRepository
       .createQueryBuilder('career')
       .where('LOWER(career.name) = :name', { name: careerName.toLowerCase() })
@@ -459,15 +484,27 @@ export class AdminService {
       career = await this.careersRepository.save(career);
     }
 
-    const duplicate = await this.cohortsRepository
-      .createQueryBuilder('cohort')
-      .leftJoin('cohort.career', 'career')
-      .where('career.id = :careerId', { careerId: career.id })
-      .andWhere('LOWER(cohort.name) = :name', {
-        name: cohortName.toLowerCase(),
-      })
-      .getOne();
+    const careerCohorts = await this.cohortsRepository.find({
+      where: { career: { id: career.id } },
+      relations: { career: true },
+    });
+    const duplicate = careerCohorts.find(
+      (item) => this.normalizeLabel(item.name).toLocaleLowerCase('es') === cohortName.toLocaleLowerCase('es'),
+    );
     if (duplicate) {
+      if (!duplicate.active) {
+        duplicate.active = true;
+        duplicate.name = cohortName;
+        duplicate.startsAt = this.parseDateBoundary(values.startsAt, false);
+        const restored = await this.cohortsRepository.save(duplicate);
+        return {
+          id: restored.id,
+          name: restored.name,
+          startsAt: restored.startsAt,
+          studentCount: 0,
+          career: { id: career.id, name: career.name },
+        };
+      }
       throw new BadRequestException(
         'Esta generación ya existe dentro de la carrera',
       );
@@ -588,6 +625,24 @@ export class AdminService {
       throw new BadRequestException('El docente seleccionado no es válido');
     }
 
+    const career = values.careerId
+      ? await this.careersRepository.findOne({ where: { id: values.careerId, active: true } })
+      : null;
+    if (values.careerId && !career) throw new BadRequestException('La carrera seleccionada no es válida');
+    if (values.cohortId && !career) throw new BadRequestException('Selecciona la carrera de la generación');
+    if (values.quadrimester !== undefined && (values.quadrimester < 1 || values.quadrimester > 9)) {
+      throw new BadRequestException('El cuatrimestre debe estar entre 1 y 9');
+    }
+    const cohort = values.cohortId
+      ? await this.cohortsRepository.findOne({
+          where: { id: values.cohortId, career: { id: career!.id }, active: true },
+          relations: { career: true },
+        })
+      : null;
+    if (values.cohortId && !cohort) {
+      throw new BadRequestException('La generación no pertenece a la carrera seleccionada');
+    }
+
     const uniqueStudentIds = [...new Set(values.studentIds)];
     const students = await this.usersRepository
       .createQueryBuilder('user')
@@ -618,10 +673,12 @@ export class AdminService {
           code: normalizedCode,
           name: values.courseName.trim(),
           credits: 0,
+          career,
         });
       } else {
         course.name = values.courseName.trim();
         course.credits = 0;
+        course.career = career;
       }
       course = await courseRepository.save(course);
 
@@ -644,6 +701,8 @@ export class AdminService {
           course,
           term,
           teacher,
+          cohort,
+          quadrimester: values.quadrimester ?? null,
           section: values.section.trim().toUpperCase(),
           startsAt,
           endsAt,
@@ -1093,6 +1152,16 @@ export class AdminService {
       throw new NotFoundException('Registro de pago no encontrado');
     }
 
+    if (changes.termId && changes.termId !== payment.term.id) {
+      const term = await this.termsRepository.findOne({ where: { id: changes.termId } });
+      if (!term) throw new BadRequestException('El periodo seleccionado no es válido');
+      const duplicate = await this.paymentsRepository.findOne({
+        where: { student: { id: payment.student.id }, term: { id: term.id } },
+      });
+      if (duplicate) throw new BadRequestException('El alumno ya tiene un pago en ese periodo');
+      payment.term = term;
+    }
+
     payment.status = changes.status;
     if (changes.paidAt) {
       payment.paidAt = this.parsePaymentDate(changes.paidAt);
@@ -1113,6 +1182,26 @@ export class AdminService {
       paidAt: savedPayment.paidAt,
       updatedAt: savedPayment.updatedAt,
     };
+  }
+
+  async createStudentPayment(values: CreateStudentPaymentDto) {
+    const [student, term] = await Promise.all([
+      this.usersRepository.findOne({ where: { id: values.studentId, role: UserRole.STUDENT, active: true } }),
+      this.termsRepository.findOne({ where: { id: values.termId } }),
+    ]);
+    if (!student) throw new BadRequestException('El alumno seleccionado no es válido');
+    if (!term) throw new BadRequestException('El periodo seleccionado no es válido');
+    const existing = await this.paymentsRepository.findOne({
+      where: { student: { id: student.id }, term: { id: term.id } },
+    });
+    if (existing) throw new BadRequestException('El alumno ya tiene un registro para ese periodo');
+    return this.paymentsRepository.save(this.paymentsRepository.create({
+      student,
+      term,
+      status: PaymentStatus.PENDING,
+      amount: 0,
+      paidAt: null,
+    }));
   }
 
   private toSafeUser(user: User) {
@@ -1137,6 +1226,10 @@ export class AdminService {
         : null,
       createdAt: user.createdAt,
     };
+  }
+
+  private normalizeLabel(value: string) {
+    return value.trim().replace(/\s+/g, ' ');
   }
 
   private async serializeUsers(users: User[]) {

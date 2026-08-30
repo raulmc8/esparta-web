@@ -53,6 +53,8 @@ interface AdminData {
   teachers: AdminUser[];
   offerings: AdminOffering[];
   payments: AdminPayment[];
+  paymentStudents: { id: string; name: string; email: string }[];
+  terms: { id: string; name: string; startsAt: string; endsAt: string }[];
 }
 
 interface CourseForm {
@@ -62,6 +64,9 @@ interface CourseForm {
   teacherId: string;
   startsAt: string;
   endsAt: string;
+  careerId: string;
+  cohortId: string;
+  quadrimester: number;
 }
 
 const paymentLabels: Record<PaymentStatus, string> = {
@@ -99,6 +104,9 @@ function getMonthlyDefaults(): CourseForm {
     teacherId: '',
     startsAt: formatDateInput(firstDay),
     endsAt: formatDateInput(lastDay),
+    careerId: '',
+    cohortId: '',
+    quadrimester: 1,
   };
 }
 
@@ -155,6 +163,16 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
   const [offeringQuery, setOfferingQuery] = useState('');
   const [offeringYear, setOfferingYear] = useState('ALL');
   const [offeringMonth, setOfferingMonth] = useState('ALL');
+  const [offeringCareer, setOfferingCareer] = useState('ALL');
+  const [offeringCohort, setOfferingCohort] = useState('ALL');
+  const [offeringQuadrimester, setOfferingQuadrimester] = useState('ALL');
+  const [paymentStudentId, setPaymentStudentId] = useState('ALL');
+  const [newPaymentStudentId, setNewPaymentStudentId] = useState('');
+  const [newPaymentTermId, setNewPaymentTermId] = useState('');
+  const [assignmentCareerId, setAssignmentCareerId] = useState('');
+  const [assignmentCohortId, setAssignmentCohortId] = useState('');
+  const [bulkCandidates, setBulkCandidates] = useState<AdminUser[]>([]);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
   const [showPendingPayments, setShowPendingPayments] = useState(false);
   const [pendingPaymentIds, setPendingPaymentIds] = useState<string[]>([]);
   const [offeringStudentQuery, setOfferingStudentQuery] = useState('');
@@ -187,6 +205,12 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
         ),
       )
       .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => {
+    api.get<AcademicStructure>('/admin/academic-structure', token)
+      .then((response) => setCareers(response.careers))
+      .catch(() => undefined);
   }, [token]);
 
   useEffect(() => {
@@ -462,6 +486,10 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       setError('Selecciona al menos un alumno para la materia.');
       return;
     }
+    if (!courseForm.careerId || courseForm.quadrimester < 1 || courseForm.quadrimester > 9) {
+      setError('Selecciona la carrera y un cuatrimestre del 1 al 9.');
+      return;
+    }
 
     setCreatingOffering(true);
     setError('');
@@ -506,6 +534,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
           status: payment.status,
           amount: Number(payment.amount),
           paidAt: payment.paidAt?.slice(0, 10) || null,
+          termId: payment.termId,
         },
         token,
       );
@@ -526,6 +555,68 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     } finally {
       setSavingPayment('');
     }
+  }
+
+  async function createPaymentRecord() {
+    if (!newPaymentStudentId || !newPaymentTermId) {
+      setError('Selecciona un alumno y un periodo.');
+      return;
+    }
+    setSavingPayment('new');
+    setError('');
+    try {
+      await api.post('/admin/payments', { studentId: newPaymentStudentId, termId: newPaymentTermId }, token);
+      await refreshDashboard();
+      setPaymentStudentId(newPaymentStudentId);
+      setSuccess('El periodo de pago quedó listo para capturarse.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible crear el periodo de pago');
+    } finally {
+      setSavingPayment('');
+    }
+  }
+
+  async function loadBulkCandidates(careerId: string, cohortId: string) {
+    setAssignmentCareerId(careerId);
+    setAssignmentCohortId(cohortId);
+    setBulkSelectedIds([]);
+    if (!careerId) {
+      setBulkCandidates([]);
+      return;
+    }
+    try {
+      const response = await api.get<{ users: AdminUser[] }>('/admin/users?role=STUDENT', token);
+      setBulkCandidates(response.users.filter((student) =>
+        student.active && student.cohort?.career.id === careerId &&
+        (!cohortId || student.cohort?.id === cohortId) &&
+        !selectedStudents.some((selected) => selected.id === student.id) &&
+        !selectedOffering?.students.some((current) => current.id === student.id),
+      ));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible cargar los alumnos');
+    }
+  }
+
+  async function confirmBulkStudents() {
+    const additions = bulkCandidates.filter((student) => bulkSelectedIds.includes(student.id));
+    if (selectedOffering) {
+      setSavingOffering(true);
+      try {
+        await api.post(`/admin/offerings/${selectedOffering.id}/students`, { studentIds: additions.map((student) => student.id) }, token);
+        await refreshDashboard();
+        setBulkCandidates((current) => current.filter((student) => !bulkSelectedIds.includes(student.id)));
+        setBulkSelectedIds([]);
+        setSuccess(`${additions.length} alumno${additions.length === 1 ? '' : 's'} añadido${additions.length === 1 ? '' : 's'} a la materia.`);
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : 'No fue posible añadir los alumnos');
+      } finally {
+        setSavingOffering(false);
+      }
+      return;
+    }
+    setSelectedStudents((current) => [...current, ...additions.filter((student) => !current.some((item) => item.id === student.id))]);
+    setBulkCandidates((current) => current.filter((student) => !bulkSelectedIds.includes(student.id)));
+    setBulkSelectedIds([]);
   }
 
   function updatePayment(
@@ -564,6 +655,10 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     setSelectedOffering(offering);
     setOfferingStudentQuery('');
     setOfferingStudentResults([]);
+    setAssignmentCareerId(offering.career?.id ?? '');
+    setAssignmentCohortId(offering.cohort?.id ?? '');
+    setBulkCandidates([]);
+    setBulkSelectedIds([]);
     setFocusOfferingStudentSearch(focusStudentSearch);
     setError('');
   }
@@ -709,9 +804,9 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
   const filteredPayments = data.payments.filter((payment) => {
     const query = paymentQuery.trim().toLowerCase();
     return (
-      !query ||
+      (paymentStudentId === 'ALL' || payment.student.id === paymentStudentId) && (!query ||
       payment.student.name.toLowerCase().includes(query) ||
-      payment.student.email.toLowerCase().includes(query)
+      payment.student.email.toLowerCase().includes(query))
     );
   });
 
@@ -737,12 +832,16 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     const matchesMonth =
       offeringMonth === 'ALL' ||
       String(startsAt.getUTCMonth() + 1) === offeringMonth;
-    return matchesText && matchesYear && matchesMonth;
+    const matchesCareer = offeringCareer === 'ALL' || offering.career?.id === offeringCareer;
+    const matchesCohort = offeringCohort === 'ALL' || offering.cohort?.id === offeringCohort;
+    const matchesQuadrimester = offeringQuadrimester === 'ALL' || String(offering.quadrimester) === offeringQuadrimester;
+    return matchesText && matchesYear && matchesMonth && matchesCareer && matchesCohort && matchesQuadrimester;
   });
   const hasOfferingFilters =
     offeringQuery.trim() !== '' ||
     offeringYear !== 'ALL' ||
-    offeringMonth !== 'ALL';
+    offeringMonth !== 'ALL' || offeringCareer !== 'ALL' ||
+    offeringCohort !== 'ALL' || offeringQuadrimester !== 'ALL';
   const offeringYears = [
     ...new Set(
       data.offerings.map((offering) =>
@@ -1027,6 +1126,18 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   </option>
                 ))}
               </select>
+              <select className="compact-filter-select" value={offeringCareer} onChange={(event) => { setOfferingCareer(event.target.value); setOfferingCohort('ALL'); }} aria-label="Filtrar materias por carrera">
+                <option value="ALL">Todas las carreras</option>
+                {careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}
+              </select>
+              <select className="compact-filter-select" value={offeringCohort} onChange={(event) => setOfferingCohort(event.target.value)} aria-label="Filtrar materias por generación">
+                <option value="ALL">Todas las generaciones</option>
+                {careers.find((career) => career.id === offeringCareer)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
+              </select>
+              <select className="compact-filter-select" value={offeringQuadrimester} onChange={(event) => setOfferingQuadrimester(event.target.value)} aria-label="Filtrar materias por cuatrimestre">
+                <option value="ALL">Todos los cuatrimestres</option>
+                {Array.from({ length: 9 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}° cuatrimestre</option>)}
+              </select>
               <button
                 type="button"
                 className="button button--secondary"
@@ -1034,6 +1145,9 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   setOfferingQuery('');
                   setOfferingYear('ALL');
                   setOfferingMonth('ALL');
+                  setOfferingCareer('ALL');
+                  setOfferingCohort('ALL');
+                  setOfferingQuadrimester('ALL');
                 }}
                 disabled={!hasOfferingFilters}
               >
@@ -1065,6 +1179,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   </div>
                   <h3>{offering.course.name}</h3>
                   <p>Periodo {offering.term}</p>
+                  <p>{offering.career?.name ?? 'Carrera sin clasificar'} · {offering.cohort?.name ?? 'Todas las generaciones'} · {offering.quadrimester ? `${offering.quadrimester}° cuatrimestre` : 'Cuatrimestre sin clasificar'}</p>
                   <div className="offering-admin-card__meta">
                     <span>
                       <CalendarDays size={16} />
@@ -1189,6 +1304,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   <span>Busca por nombre, correo o matrícula.</span>
                 </div>
               </div>
+              <div className="course-form-grid">
+                <label className="field"><span>Carrera</span><select value={assignmentCareerId} onChange={(event) => void loadBulkCandidates(event.target.value, '')}><option value="">Selecciona una carrera</option>{careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</select></label>
+                <label className="field"><span>Generación</span><select value={assignmentCohortId} disabled={!assignmentCareerId} onChange={(event) => void loadBulkCandidates(assignmentCareerId, event.target.value)}><option value="">Todas las generaciones</option>{careers.find((career) => career.id === assignmentCareerId)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></label>
+              </div>
+              {bulkCandidates.length > 0 && <div className="assignment-results">
+                <label><input type="checkbox" checked={bulkSelectedIds.length === bulkCandidates.length} onChange={(event) => setBulkSelectedIds(event.target.checked ? bulkCandidates.map((student) => student.id) : [])} /> Seleccionar todos ({bulkCandidates.length})</label>
+                {bulkCandidates.map((student) => <label key={student.id}><input type="checkbox" checked={bulkSelectedIds.includes(student.id)} onChange={(event) => setBulkSelectedIds((current) => event.target.checked ? [...current, student.id] : current.filter((id) => id !== student.id))} /><span><strong>{student.firstName} {student.lastName}</strong><small>{student.cohort?.name} · {student.email}</small></span></label>)}
+                <button type="button" className="button button--primary" disabled={!bulkSelectedIds.length || savingOffering} onClick={() => void confirmBulkStudents()}>Agregar seleccionados ({bulkSelectedIds.length})</button>
+              </div>}
               <form
                 className="assignment-search"
                 onSubmit={(event) => {
@@ -1367,15 +1491,24 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                 y mantener el estatus como pendiente.
               </p>
             </div>
-            <label className="table-search">
-              <Search size={17} />
-              <input
-                value={paymentQuery}
-                onChange={(event) => setPaymentQuery(event.target.value)}
-                placeholder="Buscar alumno"
-                aria-label="Buscar alumno en pagos"
-              />
-            </label>
+            <div className="data-card__actions">
+              <select className="compact-filter-select" value={paymentStudentId} onChange={(event) => setPaymentStudentId(event.target.value)} aria-label="Ver historial de pagos de un alumno">
+                <option value="ALL">Todos los alumnos</option>
+                {data.paymentStudents.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+              </select>
+              <label className="table-search">
+                <Search size={17} />
+                <input value={paymentQuery} onChange={(event) => setPaymentQuery(event.target.value)} placeholder="Buscar alumno" aria-label="Buscar alumno en pagos" />
+              </label>
+            </div>
+          </div>
+          <div className="assignment-section">
+            <div className="assignment-section__heading"><div><strong>Agregar periodo de pago</strong><span>Permite capturar pagos incluso si el alumno aún no está inscrito en una materia.</span></div></div>
+            <div className="data-card__actions">
+              <select value={newPaymentStudentId} onChange={(event) => setNewPaymentStudentId(event.target.value)}><option value="">Selecciona un alumno</option>{data.paymentStudents.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}</select>
+              <select value={newPaymentTermId} onChange={(event) => setNewPaymentTermId(event.target.value)}><option value="">Selecciona un periodo</option>{data.terms.map((term) => <option key={term.id} value={term.id}>{term.name}</option>)}</select>
+              <button type="button" className="button button--primary" onClick={() => void createPaymentRecord()} disabled={savingPayment === 'new'}><Plus size={17} />Agregar periodo</button>
+            </div>
           </div>
           <div className="table-scroll">
             <table className="admin-table payment-table">
@@ -1401,7 +1534,14 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                         </div>
                       </div>
                     </td>
-                    <td>{payment.term}</td>
+                    <td>
+                      <select value={payment.termId} onChange={(event) => {
+                        const term = data.terms.find((item) => item.id === event.target.value);
+                        updatePayment(payment.id, { termId: event.target.value, term: term?.name ?? payment.term });
+                      }} aria-label={`Periodo de pago de ${payment.student.name}`}>
+                        {data.terms.map((term) => <option key={term.id} value={term.id}>{term.name}</option>)}
+                      </select>
+                    </td>
                     <td>
                       <div className="money-input">
                         <span>$</span>
@@ -2084,6 +2224,26 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                 </select>
               </label>
               <label className="field">
+                <span>Carrera</span>
+                <select value={courseForm.careerId} onChange={(event) => setCourseForm({ ...courseForm, careerId: event.target.value, cohortId: '' })} required>
+                  <option value="">Selecciona una carrera</option>
+                  {careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Generación (opcional)</span>
+                <select value={courseForm.cohortId} onChange={(event) => setCourseForm({ ...courseForm, cohortId: event.target.value })} disabled={!courseForm.careerId}>
+                  <option value="">Todas las generaciones</option>
+                  {careers.find((career) => career.id === courseForm.careerId)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Cuatrimestre</span>
+                <select value={courseForm.quadrimester} onChange={(event) => setCourseForm({ ...courseForm, quadrimester: Number(event.target.value) })} required>
+                  {Array.from({ length: 9 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}° cuatrimestre</option>)}
+                </select>
+              </label>
+              <label className="field">
                 <span>Fecha de inicio</span>
                 <input
                   type="date"
@@ -2141,6 +2301,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   <p>Aún no has agregado alumnos.</p>
                 )}
               </div>
+              <div className="course-form-grid">
+                <label className="field"><span>Filtrar alumnos por carrera</span><select value={assignmentCareerId} onChange={(event) => void loadBulkCandidates(event.target.value, '')}><option value="">Selecciona una carrera</option>{careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</select></label>
+                <label className="field"><span>Filtrar por generación</span><select value={assignmentCohortId} disabled={!assignmentCareerId} onChange={(event) => void loadBulkCandidates(assignmentCareerId, event.target.value)}><option value="">Todas las generaciones</option>{careers.find((career) => career.id === assignmentCareerId)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></label>
+              </div>
+              {bulkCandidates.length > 0 && <div className="assignment-results">
+                <label><input type="checkbox" checked={bulkSelectedIds.length === bulkCandidates.length} onChange={(event) => setBulkSelectedIds(event.target.checked ? bulkCandidates.map((student) => student.id) : [])} /> Seleccionar todos ({bulkCandidates.length})</label>
+                {bulkCandidates.map((student) => <label key={student.id}><input type="checkbox" checked={bulkSelectedIds.includes(student.id)} onChange={(event) => setBulkSelectedIds((current) => event.target.checked ? [...current, student.id] : current.filter((id) => id !== student.id))} /><span><strong>{student.firstName} {student.lastName}</strong><small>{student.cohort?.name} · {student.email}</small></span></label>)}
+                <button type="button" className="button button--secondary" disabled={!bulkSelectedIds.length} onClick={confirmBulkStudents}>Confirmar selección ({bulkSelectedIds.length})</button>
+              </div>}
               <div
                 className="assignment-search"
               >

@@ -18,6 +18,7 @@ import {
 import { StudentModule } from './student/student.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { InitialPostgresSchema1721400000000 } from './database/migrations/1721400000000-initial-postgres-schema';
+import { AddAcademicClassification1721500000000 } from './database/migrations/1721500000000-add-academic-classification';
 
 const isTest = process.env.NODE_ENV === 'test';
 const isPostgres = Boolean(process.env.DATABASE_URL);
@@ -41,7 +42,7 @@ const entities = [
             type: 'postgres',
             url: process.env.DATABASE_URL,
             entities,
-            migrations: [InitialPostgresSchema1721400000000],
+            migrations: [InitialPostgresSchema1721400000000, AddAcademicClassification1721500000000],
             migrationsRun: true,
             synchronize: false,
             ssl:

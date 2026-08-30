@@ -3,6 +3,8 @@ import {
   IsArray,
   IsDateString,
   IsString,
+  IsInt,
+  IsOptional,
   IsUUID,
   MinLength,
 } from 'class-validator';
@@ -22,6 +24,18 @@ export class CreateCourseOfferingDto {
 
   @IsUUID()
   teacherId: string;
+
+  @IsOptional()
+  @IsUUID()
+  careerId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  cohortId?: string;
+
+  @IsOptional()
+  @IsInt()
+  quadrimester?: number;
 
   @IsArray()
   @ArrayMinSize(1)

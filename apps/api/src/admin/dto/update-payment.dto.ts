@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 import { PaymentStatus } from '../../database/enums';
 
 export class UpdatePaymentDto {
@@ -13,4 +13,8 @@ export class UpdatePaymentDto {
   @IsOptional()
   @IsDateString()
   paidAt?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  termId?: string;
 }

@@ -99,6 +99,7 @@ export interface AdminPayment {
     email: string;
   };
   term: string;
+  termId: string;
   status: PaymentStatus;
   amount: number;
   paidAt: string | null;
@@ -118,6 +119,9 @@ export interface AdminOffering {
     code: string;
     name: string;
   };
+  career: { id: string; name: string } | null;
+  cohort: { id: string; name: string } | null;
+  quadrimester: number | null;
   teacher: {
     id: string;
     name: string;

@@ -27,6 +27,7 @@ import { UpdateStudentPaymentDto } from './dto/update-student-payment.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateCareerDto } from './dto/update-career.dto';
 import { UpdateCohortDto } from './dto/update-cohort.dto';
+import { CreateStudentPaymentDto } from './dto/create-student-payment.dto';
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -161,5 +162,10 @@ export class AdminController {
     @Body() changes: UpdatePaymentDto,
   ) {
     return this.adminService.updatePayment(paymentId, changes);
+  }
+
+  @Post('payments')
+  createPayment(@Body() values: CreateStudentPaymentDto) {
+    return this.adminService.createStudentPayment(values);
   }
 }

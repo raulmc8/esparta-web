@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { OfferingStatus } from '../enums';
 import { Course } from './course.entity';
+import { Cohort } from './cohort.entity';
 import { Enrollment } from './enrollment.entity';
 import { Term } from './term.entity';
 import { User } from './user.entity';
@@ -44,6 +45,12 @@ export class CourseOffering {
     nullable: false,
   })
   teacher: User;
+
+  @ManyToOne(() => Cohort, { nullable: true })
+  cohort: Cohort | null;
+
+  @Column({ type: 'integer', nullable: true })
+  quadrimester: number | null;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.offering)
   enrollments: Enrollment[];

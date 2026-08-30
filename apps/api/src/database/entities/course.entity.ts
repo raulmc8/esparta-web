@@ -1,4 +1,5 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Career } from './career.entity';
 import { CourseOffering } from './course-offering.entity';
 
 @Entity('courses')
@@ -14,6 +15,9 @@ export class Course {
 
   @Column({ default: 0 })
   credits: number;
+
+  @ManyToOne(() => Career, (career) => career.courses, { nullable: true })
+  career: Career | null;
 
   @OneToMany(() => CourseOffering, (offering) => offering.course)
   offerings: CourseOffering[];
