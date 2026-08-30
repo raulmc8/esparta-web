@@ -280,6 +280,7 @@ describe('Campus API', () => {
         section: 'JUN-UX',
         teacherId: dashboard.body.teachers[0].id,
         studentIds: [search.body.students[0].id],
+        hiddenStudentIds: [search.body.students[0].id],
         startsAt: monthRange.startsAt,
         endsAt: monthRange.endsAt,
       })
@@ -308,6 +309,7 @@ describe('Campus API', () => {
         offering.course.code === 'UX-401',
     );
     expect(offeringWithStudents.students).toHaveLength(1);
+    expect(offeringWithStudents.students[0].visibleToTeacher).toBe(false);
     expect(offeringWithStudents.students[0].email).toBe('alumno@universidad.mx');
 
     const studentToken = await login('alumno@universidad.mx');

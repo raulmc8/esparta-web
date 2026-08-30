@@ -655,6 +655,9 @@ export class AdminService {
     }
 
     const uniqueStudentIds = [...new Set(values.studentIds)];
+    if ((values.hiddenStudentIds ?? []).some((id) => !uniqueStudentIds.includes(id))) {
+      throw new BadRequestException('Solo puedes ocultar alumnos seleccionados para la materia');
+    }
     const students = await this.usersRepository
       .createQueryBuilder('user')
       .where('user.id IN (:...studentIds)', { studentIds: uniqueStudentIds })
@@ -724,11 +727,13 @@ export class AdminService {
         }),
       );
 
+      const hiddenStudentIds = new Set(values.hiddenStudentIds ?? []);
       await enrollmentRepository.save(
         students.map((student) =>
           enrollmentRepository.create({
             student,
             offering,
+            visibleToTeacher: !hiddenStudentIds.has(student.id),
             status:
               offering.status === OfferingStatus.COMPLETED
                 ? EnrollmentStatus.COMPLETED

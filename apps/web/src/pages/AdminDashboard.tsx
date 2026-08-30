@@ -155,6 +155,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
   const [assignmentQuery, setAssignmentQuery] = useState('');
   const [assignmentResults, setAssignmentResults] = useState<AdminUser[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<AdminUser[]>([]);
+  const [hiddenStudentIds, setHiddenStudentIds] = useState<string[]>([]);
   const [creatingOffering, setCreatingOffering] = useState(false);
   const [savingCohort, setSavingCohort] = useState(false);
   const [savingPayment, setSavingPayment] = useState('');
@@ -517,6 +518,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
         {
           ...courseForm,
           studentIds: selectedStudents.map((student) => student.id),
+          hiddenStudentIds,
         },
         token,
       );
@@ -526,6 +528,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
         teacherId: refreshed.teachers[0]?.id || '',
       });
       setSelectedStudents([]);
+      setHiddenStudentIds([]);
       setAssignmentResults([]);
       setAssignmentQuery('');
       setShowOfferingModal(false);
@@ -665,6 +668,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     setSelectedStudents((current) =>
       current.filter((student) => student.id !== studentId),
     );
+    setHiddenStudentIds((current) => current.filter((id) => id !== studentId));
   }
 
   function openOfferingManagement(
@@ -1395,7 +1399,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               <div className="course-form-grid">
                 <label className="field"><span>Carrera</span><select value={assignmentCareerId} onChange={(event) => void loadBulkCandidates(event.target.value, '')}><option value="">Selecciona una carrera</option>{careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</select></label>
                 <label className="field"><span>Generación</span><select value={assignmentCohortId} disabled={!assignmentCareerId} onChange={(event) => void loadBulkCandidates(assignmentCareerId, event.target.value)}><option value="">Todas las generaciones</option>{careers.find((career) => career.id === assignmentCareerId)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></label>
-                <button type="button" className="button button--secondary filter-clear-button" onClick={() => { setAssignmentCareerId(''); setAssignmentCohortId(''); setBulkCandidates([]); setBulkSelectedIds([]); }} disabled={!assignmentCareerId}><X size={16} />Limpiar filtros</button>
+                <div className="field filter-clear-field"><span>&nbsp;</span><button type="button" className="button button--secondary" onClick={() => { setAssignmentCareerId(''); setAssignmentCohortId(''); setBulkCandidates([]); setBulkSelectedIds([]); }} disabled={!assignmentCareerId}><X size={16} />Limpiar filtros</button></div>
               </div>
               {bulkCandidates.length > 0 && <div className="bulk-student-picker">
                 <label className="bulk-student-row bulk-student-row--all"><input type="checkbox" checked={bulkSelectedIds.length === bulkCandidates.length} onChange={(event) => setBulkSelectedIds(event.target.checked ? bulkCandidates.map((student) => student.id) : [])} /><span>Seleccionar todos ({bulkCandidates.length})</span></label>
@@ -1589,7 +1593,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               <input value={paymentQuery} onChange={(event) => { setPaymentQuery(event.target.value); setPaymentStudentId(''); setNewPaymentStudentId(''); setShowPaymentHistory(false); }} placeholder="Buscar por nombre o correo del alumno" aria-label="Buscar alumno en pagos" />
             </label>
             {paymentSearchResults.length > 0 && <div className="payment-search-results">
-              {paymentSearchResults.map((student) => <button type="button" key={student.id} onClick={() => { setPaymentStudentId(student.id); setNewPaymentStudentId(student.id); setPaymentQuery(student.name); setShowPaymentHistory(false); }}>
+              {paymentSearchResults.map((student) => <button type="button" key={student.id} onClick={() => { setPaymentStudentId(student.id); setNewPaymentStudentId(student.id); setPaymentQuery(''); setShowPaymentHistory(false); }}>
                 <span>{student.name.charAt(0)}</span><div><strong>{student.name}</strong><small>{student.email}</small></div>
               </button>)}
             </div>}
@@ -2383,10 +2387,21 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               </div>
               <div className="selected-students">
                 {selectedStudents.map((student) => (
-                  <span key={student.id}>
-                    {student.firstName} {student.lastName}
+                  <span className={hiddenStudentIds.includes(student.id) ? 'is-hidden-from-teacher' : ''} key={student.id}>
+                    <span className="selected-student-name">{student.firstName} {student.lastName}</span>
                     <button
                       type="button"
+                      className="selected-student-visibility"
+                      onClick={() => setHiddenStudentIds((current) => current.includes(student.id) ? current.filter((id) => id !== student.id) : [...current, student.id])}
+                      aria-label={`${hiddenStudentIds.includes(student.id) ? 'Mostrar' : 'Ocultar'} a ${student.firstName} para el docente`}
+                      title={hiddenStudentIds.includes(student.id) ? 'Oculto para el docente. Haz clic para mostrarlo.' : 'Visible para el docente. Haz clic para ocultarlo.'}
+                    >
+                      {hiddenStudentIds.includes(student.id) ? <EyeOff size={13} /> : <Eye size={13} />}
+                      {hiddenStudentIds.includes(student.id) ? 'Oculto' : 'Visible'}
+                    </button>
+                    <button
+                      type="button"
+                      className="selected-student-remove"
                       onClick={() => removeStudent(student.id)}
                       aria-label={`Quitar a ${student.firstName}`}
                     >
@@ -2401,7 +2416,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               <div className="course-form-grid">
                 <label className="field"><span>Filtrar alumnos por carrera</span><select value={assignmentCareerId} onChange={(event) => void loadBulkCandidates(event.target.value, '')}><option value="">Selecciona una carrera</option>{careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</select></label>
                 <label className="field"><span>Filtrar por generación</span><select value={assignmentCohortId} disabled={!assignmentCareerId} onChange={(event) => void loadBulkCandidates(assignmentCareerId, event.target.value)}><option value="">Todas las generaciones</option>{careers.find((career) => career.id === assignmentCareerId)?.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></label>
-                <button type="button" className="button button--secondary filter-clear-button" onClick={() => { setAssignmentCareerId(''); setAssignmentCohortId(''); setBulkCandidates([]); setBulkSelectedIds([]); }} disabled={!assignmentCareerId}><X size={16} />Limpiar filtros</button>
+                <div className="field filter-clear-field"><span>&nbsp;</span><button type="button" className="button button--secondary" onClick={() => { setAssignmentCareerId(''); setAssignmentCohortId(''); setBulkCandidates([]); setBulkSelectedIds([]); }} disabled={!assignmentCareerId}><X size={16} />Limpiar filtros</button></div>
               </div>
               {bulkCandidates.length > 0 && <div className="bulk-student-picker">
                 <label className="bulk-student-row bulk-student-row--all"><input type="checkbox" checked={bulkSelectedIds.length === bulkCandidates.length} onChange={(event) => setBulkSelectedIds(event.target.checked ? bulkCandidates.map((student) => student.id) : [])} /><span>Seleccionar todos ({bulkCandidates.length})</span></label>

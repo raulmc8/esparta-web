@@ -2094,6 +2094,19 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+.selected-students > span.is-hidden-from-teacher {
+  color: #7a5b28;
+  border-color: #ead3a7;
+  background: #fff8e9;
+}
+
+.selected-student-name {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .selected-students button {
   display: grid;
   width: 19px;
@@ -2103,6 +2116,25 @@ tbody tr:hover {
   border-radius: 50%;
   color: #4f6fa9;
   background: #dfe9fa;
+}
+
+.selected-students .selected-student-visibility {
+  display: inline-flex;
+  width: auto;
+  height: 23px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 99px;
+  padding: 0 7px;
+  color: #315fae;
+  background: #dfe9fa;
+  font-size: 0.55rem;
+  font-weight: 750;
+}
+
+.selected-students .is-hidden-from-teacher .selected-student-visibility {
+  color: #865e1f;
+  background: #f7e6c2;
 }
 
 .selected-students p {
@@ -2210,9 +2242,9 @@ tbody tr:hover {
   margin-top: 3px;
 }
 
-.filter-clear-button {
-  align-self: end;
-  margin-bottom: 15px;
+.filter-clear-field .button {
+  width: 100%;
+  min-height: 50px;
 }
 
 .assignment-results strong {
