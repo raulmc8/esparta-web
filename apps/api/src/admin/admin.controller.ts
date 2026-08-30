@@ -94,6 +94,11 @@ export class AdminController {
     return this.adminService.updateOffering(offeringId, values);
   }
 
+  @Delete('offerings/:id')
+  deleteOffering(@Param('id') offeringId: string) {
+    return this.adminService.deleteOffering(offeringId);
+  }
+
   @Post('offerings/:id/students')
   addOfferingStudents(
     @Param('id') offeringId: string,

@@ -1362,6 +1362,29 @@ code {
   box-shadow: 0 9px 30px rgba(26, 39, 67, 0.05);
 }
 
+.payment-data-card {
+  min-height: 310px;
+  overflow: visible;
+}
+
+.offering-data-card .data-card__header {
+  display: grid;
+  align-items: start;
+}
+
+.offering-data-card .data-card__actions {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(145px, 1fr)) auto auto;
+  width: 100%;
+}
+
+.offering-data-card .table-search,
+.offering-data-card .compact-filter-select,
+.offering-data-card .data-card__actions > .button {
+  min-width: 0;
+  width: 100%;
+}
+
 .data-card__header {
   display: flex;
   align-items: center;
@@ -1786,7 +1809,7 @@ tbody tr:hover {
 
 .offering-admin-card__actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   border-top: 1px solid #edf0f4;
   padding: 12px;
@@ -2945,8 +2968,8 @@ tbody tr:hover {
 
 .payment-student-search {
   position: relative;
-  max-width: 680px;
-  margin: 18px 0;
+  max-width: none;
+  margin: 20px 22px 28px;
 }
 
 .payment-search-field {
@@ -3011,6 +3034,7 @@ tbody tr:hover {
   border-radius: 13px;
   padding: 17px;
   background: #f8fafd;
+  margin: 0 22px 22px;
 }
 
 .payment-capture-row {
@@ -3026,7 +3050,17 @@ tbody tr:hover {
 }
 
 .payment-history-table {
-  margin-top: 18px;
+  margin: 18px 22px 22px;
+}
+
+.offering-save-actions {
+  position: sticky;
+  z-index: 2;
+  bottom: -25px;
+  margin: 22px -25px -25px;
+  border-top: 1px solid #e2e7ef;
+  padding: 16px 25px;
+  background: #fff;
 }
 
 .offering-management-toolbar .field {
@@ -3133,6 +3167,14 @@ tbody tr:hover {
 }
 
 @media (max-width: 1180px) {
+  .offering-data-card .data-card__actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .offering-data-card .table-search {
+    grid-column: span 2;
+  }
+
   .stats-grid--admin {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -3210,6 +3252,14 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
+  .offering-data-card .data-card__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .offering-data-card .table-search {
+    grid-column: auto;
+  }
+
   .sidebar {
     display: none;
   }

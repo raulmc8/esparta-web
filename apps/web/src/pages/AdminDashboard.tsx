@@ -699,10 +699,35 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
         },
         token,
       );
+      if (bulkSelectedIds.length) {
+        await api.post(
+          `/admin/offerings/${selectedOffering.id}/students`,
+          { studentIds: bulkSelectedIds },
+          token,
+        );
+      }
       await refreshDashboard();
+      setBulkSelectedIds([]);
+      setBulkCandidates([]);
       setSuccess('La materia fue actualizada.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No fue posible cambiar el docente');
+    } finally {
+      setSavingOffering(false);
+    }
+  }
+
+  async function deleteOffering(offering: AdminOffering) {
+    if (!window.confirm(`¿Eliminar la materia “${offering.course.name}”? También se eliminarán sus inscripciones y calificaciones.`)) return;
+    setSavingOffering(true);
+    setError('');
+    try {
+      await api.delete(`/admin/offerings/${offering.id}`, token);
+      await refreshDashboard();
+      setSelectedOffering(null);
+      setSuccess('La materia fue eliminada.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible eliminar la materia');
     } finally {
       setSavingOffering(false);
     }
@@ -1112,7 +1137,7 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       )}
 
       {activeTab === 'offerings' && (
-        <section className="data-card">
+        <section className="data-card offering-data-card">
           <div className="data-card__header">
             <div>
               <h2>Materias mensuales</h2>
@@ -1246,6 +1271,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                     <Pencil size={16} />
                     Gestionar
                   </button>
+                  <button
+                    type="button"
+                    className="button button--danger"
+                    onClick={() => void deleteOffering(offering)}
+                    disabled={savingOffering}
+                  >
+                    <Trash2 size={16} />
+                    Eliminar
+                  </button>
                 </div>
               </article>
             ))}
@@ -1349,14 +1383,6 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                   {Array.from({ length: 9 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}° cuatrimestre</option>)}
                 </select>
               </label>
-              <button
-                className="button button--primary"
-                onClick={() => void saveOfferingTeacher()}
-                disabled={savingOffering}
-              >
-                <Save size={17} />
-                Guardar cambios
-              </button>
             </div>
 
             <div className="assignment-section offering-add-student">
@@ -1374,7 +1400,6 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
               {bulkCandidates.length > 0 && <div className="bulk-student-picker">
                 <label className="bulk-student-row bulk-student-row--all"><input type="checkbox" checked={bulkSelectedIds.length === bulkCandidates.length} onChange={(event) => setBulkSelectedIds(event.target.checked ? bulkCandidates.map((student) => student.id) : [])} /><span>Seleccionar todos ({bulkCandidates.length})</span></label>
                 {bulkCandidates.map((student) => <label className="bulk-student-row" key={student.id}><input type="checkbox" checked={bulkSelectedIds.includes(student.id)} onChange={(event) => setBulkSelectedIds((current) => event.target.checked ? [...current, student.id] : current.filter((id) => id !== student.id))} /><span><strong>{student.firstName} {student.lastName}</strong><small>{student.cohort?.name} · {student.email}</small></span></label>)}
-                <button type="button" className="button button--primary" disabled={!bulkSelectedIds.length || savingOffering} onClick={() => void confirmBulkStudents()}>Agregar seleccionados ({bulkSelectedIds.length})</button>
               </div>}
               <form
                 className="assignment-search"
@@ -1539,12 +1564,19 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                 Esta materia todavía no tiene alumnos inscritos.
               </div>
             )}
+            <div className="modal-actions offering-save-actions">
+              <button type="button" className="button button--secondary" onClick={() => setSelectedOffering(null)}>Cancelar</button>
+              <button type="button" className="button button--primary" onClick={() => void saveOfferingTeacher()} disabled={savingOffering}>
+                <Save size={17} />
+                {savingOffering ? 'Guardando...' : `Guardar todos los cambios${bulkSelectedIds.length ? ` y ${bulkSelectedIds.length} alumno${bulkSelectedIds.length === 1 ? '' : 's'}` : ''}`}
+              </button>
+            </div>
           </section>
         </div>
       )}
 
       {activeTab === 'payments' && (
-        <section className="data-card">
+        <section className="data-card payment-data-card">
           <div className="data-card__header">
             <div>
               <h2>Control de pagos</h2>

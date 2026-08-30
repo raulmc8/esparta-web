@@ -837,6 +837,29 @@ export class AdminService {
     };
   }
 
+  async deleteOffering(offeringId: string) {
+    const offering = await this.offeringsRepository.findOne({
+      where: { id: offeringId },
+      relations: { course: true, enrollments: true },
+    });
+    if (!offering) throw new NotFoundException('Materia no encontrada');
+
+    await this.dataSource.transaction(async (manager) => {
+      if (offering.enrollments.length) {
+        await manager.getRepository(Enrollment).remove(offering.enrollments);
+      }
+      await manager.getRepository(CourseOffering).remove(offering);
+      const remainingOfferings = await manager.getRepository(CourseOffering).count({
+        where: { course: { id: offering.course.id } },
+      });
+      if (!remainingOfferings) {
+        await manager.getRepository(Course).remove(offering.course);
+      }
+    });
+
+    return { id: offeringId, deleted: true };
+  }
+
   async addOfferingStudents(
     offeringId: string,
     values: AddOfferingStudentsDto,
