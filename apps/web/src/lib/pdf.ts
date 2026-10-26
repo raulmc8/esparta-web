@@ -1,6 +1,12 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AdminOffering, StudentCourse, TeacherOffering, User } from '../types';
+import {
+  AdminOffering,
+  AdminPayment,
+  StudentCourse,
+  TeacherOffering,
+  User,
+} from '../types';
 
 const BLUE = [22, 47, 139] as const;
 
@@ -24,7 +30,11 @@ function drawLetterhead(
   const width = doc.internal.pageSize.getWidth();
   doc.setFillColor(...BLUE);
   doc.rect(0, 0, width, 35, 'F');
-  doc.addImage(logo, 'JPEG', 13, 6, 73, 27);
+  doc.addImage(logo, 'JPEG', 13, 4, 68, 23);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('Campus Guatacalca', 47, 32, { align: 'center' });
   doc.setTextColor(25, 35, 60);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
@@ -194,4 +204,89 @@ export async function downloadTranscript(
   });
   addFooter(doc);
   doc.save(`kardex-${safeFileName(`${user.firstName}-${user.lastName}`)}.pdf`);
+}
+
+export function createPaymentReceiptDocument(
+  payment: AdminPayment,
+  logo: string,
+) {
+  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  const statusLabel =
+    payment.status === 'PAID'
+      ? 'Pagado - liquidación total'
+      : payment.status === 'PENDING'
+        ? 'Pendiente - abono parcial'
+        : 'Vencido';
+  const paymentDate = payment.paidAt
+    ? new Intl.DateTimeFormat('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(payment.paidAt))
+    : 'Sin fecha registrada';
+  const receiptNumber = payment.id.slice(0, 8).toUpperCase();
+
+  drawLetterhead(
+    doc,
+    logo,
+    'Recibo de pago',
+    `Folio ${receiptNumber} · Fecha de emisión ${new Intl.DateTimeFormat('es-MX').format(new Date())}`,
+  );
+
+  doc.setDrawColor(218, 224, 234);
+  doc.setFillColor(247, 249, 253);
+  doc.roundedRect(14, 60, 188, 42, 3, 3, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(25, 35, 60);
+  doc.text('RECIBIMOS DE', 21, 70);
+  doc.setFontSize(14);
+  doc.text(payment.student.name, 21, 79);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(90, 100, 120);
+  doc.text(payment.student.email, 21, 86);
+  doc.text(`Periodo: ${payment.term}`, 21, 94);
+
+  autoTable(doc, {
+    head: [['Concepto', 'Estado', 'Fecha de pago', 'Monto recibido']],
+    body: [['Pago de colegiatura', statusLabel, paymentDate, `$${payment.amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]],
+    startY: 112,
+    margin: { left: 14, right: 14 },
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [...BLUE], textColor: 255 },
+    columnStyles: {
+      0: { cellWidth: 46 },
+      1: { cellWidth: 47 },
+      2: { cellWidth: 48 },
+      3: { cellWidth: 47, halign: 'right', fontStyle: 'bold' },
+    },
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(80, 90, 108);
+  doc.text(
+    payment.status === 'PAID'
+      ? 'Este recibo acredita la liquidación total del periodo indicado.'
+      : 'Este recibo acredita un abono parcial. El periodo conserva saldo pendiente.',
+    14,
+    151,
+  );
+  doc.setDrawColor(150, 160, 177);
+  doc.line(64, 195, 152, 195);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(45, 55, 75);
+  doc.text('Administración / Firma y sello', 108, 201, { align: 'center' });
+
+  addFooter(doc);
+  return doc;
+}
+
+export async function downloadPaymentReceipt(payment: AdminPayment) {
+  const logo = await loadLogo();
+  const doc = createPaymentReceiptDocument(payment, logo);
+  doc.save(`recibo-${safeFileName(payment.student.name)}-${safeFileName(payment.term)}.pdf`);
 }

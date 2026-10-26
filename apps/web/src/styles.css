@@ -80,6 +80,22 @@ code {
   border-radius: 8px;
 }
 
+.brand__campus {
+  display: block;
+  margin-top: 10px;
+  color: var(--navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.brand--light .brand__campus {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .brand--compact img {
   width: 154px;
 }
@@ -3090,7 +3106,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
-  min-width: 82px;
+  min-width: 122px;
 }
 
 .offering-save-actions {

@@ -128,7 +128,7 @@ export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) 
   return (
     <div className="login-page">
       <section className="login-story">
-        <Brand light />
+        <Brand light showCampus />
         <div className="login-story__content">
           <span className="eyebrow eyebrow--light">
             <Sparkles size={16} />

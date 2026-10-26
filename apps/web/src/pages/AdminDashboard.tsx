@@ -9,6 +9,7 @@ import {
   Eye,
   EyeOff,
   Pencil,
+  Printer,
   Plus,
   ReceiptText,
   Save,
@@ -24,7 +25,11 @@ import {
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { LoadingState } from '../components/LoadingState';
 import { api } from '../lib/api';
-import { downloadOfferingReport, downloadTranscript } from '../lib/pdf';
+import {
+  downloadOfferingReport,
+  downloadPaymentReceipt,
+  downloadTranscript,
+} from '../lib/pdf';
 import {
   AdminOffering,
   AdminPayment,
@@ -546,11 +551,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     }
   }
 
-  async function savePayment(payment: AdminPayment) {
+  async function savePayment(payment: AdminPayment, printReceipt = false) {
+    if (printReceipt && (Number(payment.amount) <= 0 || !payment.paidAt)) {
+      setError('Para imprimir el recibo captura un monto mayor a cero y la fecha de pago.');
+      return;
+    }
     setSavingPayment(payment.id);
     setError('');
     try {
-      await api.patch(
+      const saved = await api.patch<Pick<AdminPayment, 'status' | 'amount' | 'paidAt' | 'updatedAt'>>(
         `/admin/payments/${payment.id}`,
         {
           status: payment.status,
@@ -568,6 +577,9 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       }
       setSavedPayment(payment.id);
       window.setTimeout(() => setSavedPayment(''), 1800);
+      if (printReceipt) {
+        await downloadPaymentReceipt({ ...payment, ...saved });
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -1712,6 +1724,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                           {savedPayment === payment.id ? <Check size={18} /> : <Save size={18} />}
                         </button>
                         <button
+                          className="icon-button"
+                          onClick={() => void savePayment(payment, true)}
+                          disabled={savingPayment === payment.id || deletingPayment === payment.id}
+                          title="Guardar e imprimir recibo"
+                          aria-label={`Guardar e imprimir recibo de ${payment.student.name}`}
+                        >
+                          <Printer size={18} />
+                        </button>
+                        <button
                           className="icon-button icon-button--danger"
                           onClick={() => void deletePaymentRecord(payment)}
                           disabled={deletingPayment === payment.id || savingPayment === payment.id}
@@ -1833,23 +1854,34 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
                           />
                         </td>
                         <td>
-                          <button
-                            className={`icon-button ${
-                              savedPayment === payment.id
-                                ? 'icon-button--saved'
-                                : ''
-                            }`}
-                            onClick={() => void savePayment(payment)}
-                            disabled={savingPayment === payment.id}
-                            title="Guardar abono o pago"
-                            aria-label={`Guardar pago de ${payment.student.name}`}
-                          >
-                            {savedPayment === payment.id ? (
-                              <Check size={18} />
-                            ) : (
-                              <Save size={18} />
-                            )}
-                          </button>
+                          <div className="payment-row-actions">
+                            <button
+                              className={`icon-button ${
+                                savedPayment === payment.id
+                                  ? 'icon-button--saved'
+                                  : ''
+                              }`}
+                              onClick={() => void savePayment(payment)}
+                              disabled={savingPayment === payment.id}
+                              title="Guardar abono o pago"
+                              aria-label={`Guardar pago de ${payment.student.name}`}
+                            >
+                              {savedPayment === payment.id ? (
+                                <Check size={18} />
+                              ) : (
+                                <Save size={18} />
+                              )}
+                            </button>
+                            <button
+                              className="icon-button"
+                              onClick={() => void savePayment(payment, true)}
+                              disabled={savingPayment === payment.id}
+                              title="Guardar e imprimir recibo"
+                              aria-label={`Guardar e imprimir recibo de ${payment.student.name}`}
+                            >
+                              <Printer size={18} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
