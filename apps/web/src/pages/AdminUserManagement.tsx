@@ -19,10 +19,11 @@ import {
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { downloadTranscript } from '../lib/pdf';
-import { AcademicStructure, AdminTranscript, AdminUser } from '../types';
+import { AcademicStructure, AdminTranscript, AdminUser, User } from '../types';
 
 interface AdminUserManagementProps {
   token: string;
+  user: User;
 }
 
 interface CreatedAccount {
@@ -55,6 +56,7 @@ const initialCohortForm = {
 
 export function AdminUserManagement({
   token,
+  user,
 }: AdminUserManagementProps) {
   const [form, setForm] = useState(initialForm);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -910,7 +912,7 @@ export function AdminUserManagement({
                   >
                     <Pencil size={17} />
                   </button>
-                  {account.role !== 'ADMIN' && (
+                  {account.id !== user.id && (
                     <button
                       className="icon-button icon-button--danger"
                       onClick={() => setDeletingUser(account)}
@@ -1214,6 +1216,12 @@ export function AdminUserManagement({
               Se eliminará la cuenta de {deletingUser.firstName}{' '}
               {deletingUser.lastName}. Esta acción no se puede deshacer.
             </p>
+            {deletingUser.role === 'ADMIN' && (
+              <div className="alert alert--warning">
+                Esta cuenta tiene permisos administrativos. Al eliminarla ya no
+                podrá acceder al panel ni gestionar usuarios.
+              </div>
+            )}
             {deletingUser.role === 'TEACHER' && (
               <div className="delete-confirmation__notice">
                 Si este docente está asignado a una materia, primero cambia el

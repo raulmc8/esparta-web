@@ -1157,10 +1157,21 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-    if (user.id === currentUser.id || user.role === UserRole.ADMIN) {
+    if (user.id === currentUser.id) {
       throw new BadRequestException(
-        'No puedes eliminar una cuenta administrativa desde esta sección',
+        'No puedes eliminar la cuenta con la que tienes la sesión iniciada',
       );
+    }
+
+    if (user.role === UserRole.ADMIN) {
+      const administratorCount = await this.usersRepository.count({
+        where: { role: UserRole.ADMIN },
+      });
+      if (administratorCount <= 1) {
+        throw new BadRequestException(
+          'No se puede eliminar la última cuenta administrativa del sistema',
+        );
+      }
     }
 
     if (user.role === UserRole.TEACHER) {

@@ -57,7 +57,7 @@ export default function App() {
         <AdminDashboard token={session.accessToken} user={session.user} />
       )}
       {session.user.role === 'ADMIN' && adminView === 'users' && (
-        <AdminUserManagement token={session.accessToken} />
+        <AdminUserManagement token={session.accessToken} user={session.user} />
       )}
     </AppShell>
   );

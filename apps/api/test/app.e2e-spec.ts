@@ -481,6 +481,41 @@ describe('Campus API', () => {
     expect(deletedSearch.body.users).toHaveLength(0);
   });
 
+  it('permite eliminar otra cuenta administrativa, pero no la cuenta en sesión', async () => {
+    const adminToken = await login('ADMIN-ESPARTA');
+    const createdAdmin = await request(app.getHttpServer())
+      .post('/api/admin/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        username: 'ADMIN-AUXILIAR',
+        firstName: 'Admin',
+        lastName: 'Auxiliar',
+        email: 'admin.auxiliar@esparta.edu.mx',
+        role: 'ADMIN',
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/api/admin/users/${createdAdmin.body.user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    const directory = await request(app.getHttpServer())
+      .get('/api/admin/users?role=ADMIN')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const currentAdmin = directory.body.users.find(
+      (candidate: { username: string }) =>
+        candidate.username === 'ADMIN-ESPARTA',
+    );
+
+    const selfDelete = await request(app.getHttpServer())
+      .delete(`/api/admin/users/${currentAdmin.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(400);
+    expect(selfDelete.body.message).toContain('sesión iniciada');
+  });
+
   it('permite cambiar y restablecer la contraseña', async () => {
     const adminToken = await login('ADMIN-ESPARTA');
     const created = await request(app.getHttpServer())
