@@ -559,7 +559,15 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
     setSavingPayment(payment.id);
     setError('');
     try {
-      const saved = await api.patch<Pick<AdminPayment, 'status' | 'amount' | 'paidAt' | 'updatedAt'>>(
+      const saved = await api.patch<
+        Pick<AdminPayment, 'status' | 'amount' | 'paidAt' | 'updatedAt'> & {
+          receiptEmail: {
+            delivered: boolean;
+            skipped?: boolean;
+            error?: string;
+          };
+        }
+      >(
         `/admin/payments/${payment.id}`,
         {
           status: payment.status,
@@ -577,6 +585,13 @@ export function AdminDashboard({ token, user }: AdminDashboardProps) {
       }
       setSavedPayment(payment.id);
       window.setTimeout(() => setSavedPayment(''), 1800);
+      setSuccess(
+        saved.receiptEmail.delivered
+          ? `Pago guardado y recibo enviado a ${payment.student.email}.`
+          : saved.receiptEmail.skipped
+            ? 'Pago guardado. Captura un monto y una fecha para enviar el recibo.'
+            : 'Pago guardado, pero no fue posible enviar el recibo por correo. Puedes descargarlo con el botón de imprimir.',
+      );
       if (printReceipt) {
         await downloadPaymentReceipt({ ...payment, ...saved });
       }

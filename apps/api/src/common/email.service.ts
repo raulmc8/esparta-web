@@ -1,12 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { User } from '../database/entities';
+import { Payment, User } from '../database/entities';
+import { PaymentStatus } from '../database/enums';
 
 interface MailMessage {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 }
 
 @Injectable()
@@ -81,6 +87,58 @@ export class EmailService {
     });
   }
 
+  async sendPaymentReceipt(payment: Payment, receiptPdf: Buffer) {
+    const fullName = `${payment.student.firstName} ${payment.student.lastName}`;
+    const safeName = this.escapeHtml(fullName);
+    const safeTerm = this.escapeHtml(payment.term.name);
+    const isPaid = payment.status === PaymentStatus.PAID;
+    const status = isPaid ? 'Pago total' : 'Abono parcial';
+    const amount = payment.amount.toLocaleString('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    });
+    const paidAt = payment.paidAt
+      ? new Intl.DateTimeFormat('es-MX', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }).format(payment.paidAt)
+      : 'Sin fecha registrada';
+
+    return this.sendMail({
+      to: payment.student.email,
+      subject: `Recibo de pago - ${payment.term.name}`,
+      text: [
+        `Hola ${fullName},`,
+        '',
+        `Registramos tu ${status.toLowerCase()} correspondiente al periodo ${payment.term.name}.`,
+        `Monto recibido: ${amount}`,
+        `Fecha de pago: ${paidAt}`,
+        '',
+        'Adjuntamos tu recibo en formato PDF.',
+        '',
+        'Instituto Universitario Esparta',
+        'Campus Guatacalca',
+      ].join('\n'),
+      html: `
+        <p>Hola ${safeName},</p>
+        <p>Registramos tu <strong>${status.toLowerCase()}</strong> correspondiente al periodo <strong>${safeTerm}</strong>.</p>
+        <p><strong>Monto recibido:</strong> ${amount}<br />
+        <strong>Fecha de pago:</strong> ${paidAt}</p>
+        <p>Adjuntamos tu recibo en formato PDF.</p>
+        <p>Instituto Universitario Esparta<br />Campus Guatacalca</p>
+      `,
+      attachments: [
+        {
+          filename: `recibo-${payment.term.name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.pdf`,
+          content: receiptPdf,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
+
   private async sendMail(message: MailMessage) {
     const smtp = this.getSmtpConfig();
 
@@ -106,6 +164,7 @@ export class EmailService {
       subject: message.subject,
       text: message.text,
       html: message.html,
+      attachments: message.attachments,
     });
 
     return { delivered: true };

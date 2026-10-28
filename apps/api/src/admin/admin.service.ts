@@ -10,6 +10,7 @@ import { hash } from 'bcryptjs';
 import { AuthenticatedUser } from '../common/authenticated-user';
 import { EmailService } from '../common/email.service';
 import { calculateAverage } from '../common/grade.utils';
+import { createPaymentReceiptPdf } from '../common/payment-receipt';
 import {
   Course,
   CourseOffering,
@@ -1236,12 +1237,38 @@ export class AdminService {
 
     const savedPayment = await this.paymentsRepository.save(payment);
 
+    let receiptEmail: {
+      delivered: boolean;
+      skipped?: boolean;
+      error?: string;
+    };
+    if (savedPayment.amount > 0 && savedPayment.paidAt) {
+      try {
+        const receiptPdf = createPaymentReceiptPdf(savedPayment);
+        receiptEmail = await this.emailService.sendPaymentReceipt(
+          savedPayment,
+          receiptPdf,
+        );
+      } catch (emailError) {
+        receiptEmail = {
+          delivered: false,
+          error:
+            emailError instanceof Error
+              ? emailError.message
+              : 'No fue posible enviar el recibo',
+        };
+      }
+    } else {
+      receiptEmail = { delivered: false, skipped: true };
+    }
+
     return {
       id: savedPayment.id,
       status: savedPayment.status,
       amount: savedPayment.amount,
       paidAt: savedPayment.paidAt,
       updatedAt: savedPayment.updatedAt,
+      receiptEmail,
     };
   }
 

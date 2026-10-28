@@ -149,6 +149,7 @@ describe('Campus API', () => {
     expect(partialPayment.body.status).toBe('PENDING');
     expect(partialPayment.body.amount).toBe(1500);
     expect(partialPayment.body.paidAt).toContain('2026-02-10');
+    expect(partialPayment.body.receiptEmail.delivered).toBe(false);
 
     const response = await request(app.getHttpServer())
       .patch(`/api/admin/payments/${pendingPayment.id}`)
